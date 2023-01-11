@@ -1,0 +1,4737 @@
+#include <sys/types.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <syslog.h>
+#include <signal.h>               
+#include <netdb.h>
+#include <stdio.h>
+//#include "ring.h"
+//#include "defines.h"
+#include <sys/ioctl.h>
+
+#include <stdlib.h>
+#include <string.h>
+#include <stddef.h>
+#include <ctype.h>
+#include <limits.h>
+#include <stdarg.h>
+#include <assert.h>
+#include <stdint.h>
+#include <errno.h>
+#include "flash.h"
+
+/*MAC*/
+#include <net/if.h> 
+#include <linux/if_ether.h> 
+
+#include "pthread.h"
+
+#include <sys/socket.h>
+#include <sys/un.h>
+
+#include <unistd.h>
+
+#include <sys/msg.h>
+
+#include "nvram.h"
+
+#include <signal.h>          
+
+//#include	"ralink_gpio.h"
+
+#include	<net/route.h>
+
+
+#include "ser2net.h"
+
+#define gtolower(a) (a)
+
+
+
+extern uchar *g_serial_config;
+extern uchar g_network_mode;
+extern uchar *g_remoteip_domain;
+extern int g_locale_remote_port;
+extern int g_client_locale_port;
+
+
+extern uchar g_network_protocol;	//0 none,1 tcp,2 udp
+extern uint g_network_timeout;
+
+extern uint g_serial_package_len;
+extern uint g_serial_package_time;
+extern uint g_serial_package_interval_time;
+
+extern uchar g_transparent_escape_en;
+extern uchar g_transparent_escape2_en;
+
+extern uint g_transparent_escape2_time;
+
+
+extern uchar g_AT_netmode;//0-default 1-eth 2-client 3-ap 4-3g 5-netwebconfig
+extern uchar *g_AT_wifi_conf;//none wep wpa_tkip wpa_aes wpa2_tkip wpa2_aes wpawpa2_tkip wpawpa2_aes
+extern uchar g_AT_dhcpd;
+
+extern uchar *g_AT_dhcpd_ip;
+extern uchar *g_AT_dhcpd_dns;
+extern uint g_AT_dhcpd_time;
+
+extern uchar g_AT_dhcpc;
+extern uchar *g_AT_net_ip;
+extern uchar *g_AT_net_dns;
+
+extern ushort g_AT_pm;
+
+extern uchar *g_AT_discovery_udp_name;
+
+extern ushort g_AT_gpio_mode;
+extern ushort g_AT_gpio_data;
+
+extern uchar g_SMaxConn;
+extern uchar *g_SRemoteIp;
+extern uchar g_SRemotePort;
+extern uchar *g_SRemoteIpPort;
+
+extern uchar g_tcp_realtime;
+
+
+void goahead_initInternet(void);
+
+void power_save(void);
+
+
+//=?
+uchar AT_version(uchar* comm,uchar*out)
+{
+	if('?' == *(comm+1)){
+		sprintf(out,"V%d.%d(%s)",AT_VERSION/100,AT_VERSION%100,__DATE__);
+	}
+}
+
+uchar AT_mode(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		if(1 == g_network_mode){
+			sprintf(out,"server");
+		}
+		else if(2 == g_network_mode){
+			sprintf(out,"client");
+		}
+		else {
+			sprintf(out,"none");
+		}
+	}
+	else if('=' == *(comm+0)){
+		uchar *p;
+		if(strstr(comm,"server")){
+			g_network_mode=1;
+			sprintf(out,"ok");
+		}
+		else if(strstr(comm,"client")){
+			g_network_mode=2;
+			sprintf(out,"ok");
+		}
+		else if(strstr(comm,"none")){
+			g_network_mode=0;
+			sprintf(out,"ok");
+		}
+		else {
+			sprintf(out,"error");
+		}
+	}
+
+	return ret;
+}
+
+static uchar SERIAL_CONFIG_BUF[32];
+static uchar REMOTE_IP_BUF[64];
+
+
+	
+static uchar AT_wifi_conf_BUF[64];
+
+
+uchar AT_remoteip(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s",g_remoteip_domain);
+	}
+	else if('=' == *(comm+0)){
+//		sprintf(REMOTE_IP_BUF,comm+1);
+//		g_remoteip_domain=REMOTE_IP_BUF;
+		
+		g_remoteip_domain = at_set_value_(g_remoteip_domain,comm+1);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_remoteport(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_locale_remote_port);
+	}
+	else if('=' == *(comm+0)){
+		g_locale_remote_port=atoi(comm+1);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+uchar AT_client_localeport(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_client_locale_port);
+	}
+	else if('=' == *(comm+0)){
+		g_client_locale_port=atoi(comm+1);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+
+
+
+uchar AT_remotepro(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		if(1 == g_network_protocol){
+			sprintf(out,"tcp");
+		}
+		else if(2 == g_network_protocol){
+			sprintf(out,"udp");
+		}
+		else {
+			sprintf(out,"none");
+		}
+	}
+	else if('=' == *(comm+0)){
+		uchar *p;
+		if(strstr(comm,"tcp")){
+			g_network_protocol=1;
+			sprintf(out,"ok");
+		}
+		else if(strstr(comm,"udp")){
+			g_network_protocol=2;
+			sprintf(out,"ok");
+		}
+		else if(strstr(comm,"none")){
+			g_network_protocol=0;
+			sprintf(out,"ok");
+		}
+		else {
+			sprintf(out,"error");
+		}
+	}
+
+	return ret;
+}
+
+
+
+
+uchar AT_SMaxConn(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_SMaxConn);
+	}
+	else if('=' == *(comm+0)){
+		g_SMaxConn=atoi(comm+1);
+		if(g_SMaxConn>MAX_CONNECTS)
+			g_SMaxConn=MAX_CONNECTS;
+		sprintf(out,"ok");
+	}
+
+	return ret;
+}
+
+
+
+
+uchar AT_TCPRealTime(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_tcp_realtime);
+	}
+	else if('=' == *(comm+0)){
+		g_tcp_realtime=atoi(comm+1);
+		sprintf(out,"ok");
+	}
+
+	return ret;
+}
+
+
+
+uchar AT_SRemoteIp(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s",g_SRemoteIp);
+	}
+	else if('=' == *(comm+0)){
+		g_SRemoteIp = at_set_value_(g_SRemoteIp,(comm+1));
+		sprintf(out,"ok");
+	}
+
+	return ret;
+}
+
+
+	
+	
+uchar AT_SRemoteIpPort(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s",g_SRemoteIpPort);
+	}
+	else if('=' == *(comm+0)){
+		g_SRemoteIpPort = at_set_value_(g_SRemoteIpPort,(comm+1));
+		sprintf(out,"ok");
+	}
+
+	return ret;
+}
+
+
+
+
+uchar AT_SRemotePort(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_SRemotePort);
+	}
+	else if('=' == *(comm+0)){
+		g_SRemotePort=atoi(comm+1);
+		sprintf(out,"ok");
+	}
+
+	return ret;
+}
+
+
+
+
+extern uint statistics_serial_send;
+extern uint statistics_serial_tx;
+extern uint statistics_serial_tx2;
+extern uint statistics_serial_tx3;
+
+#if 0
+extern uint tim_test1;
+extern uint tim_test2;
+extern uint tim_test3;
+extern uint tim_test4;
+extern uint tim_test5;
+extern uint tim_test6;
+extern uint tim_test7;
+
+
+extern uint tim_testA[20];
+#endif
+
+uchar AT_uart(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s",g_serial_config);
+	}
+	else if('=' == *(comm+0)){
+//		sprintf(SERIAL_CONFIG_BUF,comm+1);
+//		g_serial_config=SERIAL_CONFIG_BUF;
+		
+		g_serial_config = at_set_value_(g_serial_config,comm+1);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+#if 0
+	TIM_ERROR("in:%s(%d)(%d)\r\n",__FUNCTION__,__LINE__,statistics_serial_send);
+TIM_ERROR("in:%s(%d)(%d)\r\n",__FUNCTION__,__LINE__,statistics_serial_tx);
+TIM_ERROR("in:%s(%d)(%d)\r\n",__FUNCTION__,__LINE__,statistics_serial_tx2);
+TIM_ERROR("in:%s(%d)(%d)\r\n",__FUNCTION__,__LINE__,statistics_serial_tx3++);
+TIM_ERROR("in:%s(%d)(%d)\r\n",__FUNCTION__,__LINE__,statistics_serial_tx3++);
+	
+TIM_ERROR("in:%s(%d)(%d)\r\n",__FUNCTION__,__LINE__,tim_test1);
+TIM_ERROR("in:%s(%d)(%d)\r\n",__FUNCTION__,__LINE__,tim_test2);
+TIM_ERROR("in:%s(%d)(%d)\r\n",__FUNCTION__,__LINE__,tim_test3);
+TIM_ERROR("in:%s(%d)(%d)\r\n",__FUNCTION__,__LINE__,tim_test4);
+TIM_ERROR("in:%s(%d)(%d)\r\n",__FUNCTION__,__LINE__,tim_test5);
+TIM_ERROR("in:%s(%d)(%d)\r\n",__FUNCTION__,__LINE__,tim_test6);
+TIM_ERROR("in:%s(%d)(%d)\r\n",__FUNCTION__,__LINE__,tim_test7);
+	tim_test1=0;
+	tim_test2=0;
+	tim_test3=0;
+	tim_test4=0;
+	tim_test5=0;
+	tim_test6=0;
+	tim_test7=0;
+{
+	uchar i;
+	for(i=0;i<(sizeof(tim_testA)/sizeof(uint));i++){
+TIM_ERROR("in:%s(%d)(%d)\r\n",__FUNCTION__,__LINE__,tim_testA[i]);
+	}
+
+}
+#endif
+
+
+	return ret;
+}
+
+	
+uchar AT_timeout(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_network_timeout);
+	}
+	else if('=' == *(comm+0)){
+		g_network_timeout=atoi(comm+1);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+extern uchar g_tcp_auto_connec;
+extern uchar g_tcp_client_stat_check;
+
+
+
+
+uchar AT_tcp_auto_connec(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_tcp_auto_connec);
+	}
+	else if('=' == *(comm+0)){
+		g_tcp_auto_connec=atoi(comm+1);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar AT_tcp_client_stat_check(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_tcp_client_stat_check);
+	}
+	else if('=' == *(comm+0)){
+		g_tcp_client_stat_check=atoi(comm+1);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_Channel(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		if(0 == strcmp(nvram_get(SER2NET_NVRAM,"AutoChannelSelect"),"1")){
+			sprintf(out,"auto");
+		}
+		else
+			sprintf(out,"%s",nvram_get(SER2NET_NVRAM,"Channel"));
+	}
+	else if('=' == *(comm+0)){
+		uchar buf[64];
+		int channel=atoi(comm+1);
+		if(channel){
+			nvram_set(SER2NET_NVRAM,"AutoChannelSelect","0");
+			sprintf(buf,"%d",channel);nvram_set(SER2NET_NVRAM,"Channel",buf);
+		}
+		else{
+			nvram_set(SER2NET_NVRAM,"AutoChannelSelect","1");
+		}
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar suspend=0;
+
+void wifi_power_save(uchar on);
+
+
+uchar wifi_suspend(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",suspend);
+	}
+	else if('=' == *(comm+0)){
+		suspend=atoi(comm+1);
+		if(suspend){
+			system("(config-powersave.sh ethernet 1 3;config-powersave.sh ethernet 1 4;config-powersave.sh usb 1)");
+//			wifi_power_save(0);
+
+			system("(brctl delif br0 ra0;brctl delif br0 apcli0;ifconfig ra0 down;ifconfig apcli0 down)");
+
+			system("(config-powersave.sh cpu 1;config-powersave.sh sdr 1;config-powersave.sh ddr 1;)");
+		}
+		else{
+			system("(config-powersave.sh cpu 0;config-powersave.sh sdr 0;config-powersave.sh ddr 0;)");
+	//		power_save();
+
+		
+		switch (g_AT_netmode){
+			case 1:
+				system("(config-powersave.sh ethernet 1 3;config-powersave.sh ethernet 0 4;config-powersave.sh usb 1)");
+				system("ifconfig br0 down");
+				break;
+			case 2:
+				system("(config-powersave.sh ethernet 1 3;config-powersave.sh ethernet 1 4;config-powersave.sh usb 1)");
+				system("(ifconfig ra0 up;)");
+				system("ifconfig br0 down");
+				system("ifconfig eth2 down");
+				break;
+			case 3:
+				system("(config-powersave.sh ethernet 1 3;config-powersave.sh ethernet 1 4;config-powersave.sh usb 1)");
+				system("(ifconfig ra0 up;brctl addif br0 ra0;)");
+				break;
+			case 4:
+				system("(config-powersave.sh ethernet 1 3;config-powersave.sh ethernet 1 4;config-powersave.sh usb 0)");
+				break;
+			default:
+			if (!strcmp(nvram_bufget(RT2860_NVRAM, "NoEth"), "1") )
+				system("(config-powersave.sh ethernet 1 3;config-powersave.sh ethernet 1 4;config-powersave.sh usb 1)");
+			else
+				system("(config-powersave.sh ethernet 0 3;config-powersave.sh ethernet 0 4;config-powersave.sh usb 0)");
+		{
+			int OperationMode=atoi(nvram_bufget(RT2860_NVRAM, "OperationMode"));
+
+			switch (OperationMode){
+				case 0:
+				if(strcmp(nvram_bufget(RT2860_NVRAM, "HLK_APOnOff"), "0"))
+					system("(ifconfig ra0 up;brctl addif br0 ra0;)");
+					system("(ifconfig apcli0 up;brctl addif br0 apcli0;)");
+					break;
+				case 1:
+					if(strcmp(nvram_bufget(RT2860_NVRAM, "HLK_APOnOff"), "0"))
+					system("(ifconfig ra0 up;brctl addif br0 ra0;)");
+					break;
+				case 2:
+					if(strcmp(nvram_bufget(RT2860_NVRAM, "HLK_APOnOff"), "0"))
+					system("(ifconfig ra0 up;)");
+					break;
+				case 3:
+				if(strcmp(nvram_bufget(RT2860_NVRAM, "HLK_APOnOff"), "0"))
+					system("(ifconfig ra0 up;brctl addif br0 ra0;)");
+					system("(ifconfig apcli0 up;)");
+					break;
+				case 4:
+					break;
+				default:
+					break;
+			}
+		}
+				break;
+		}
+			
+		}
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar password_(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		//sprintf(out,"%s",nvram_get(SER2NET_NVRAM,"Password"));
+		sprintf(out,"");
+	}
+	else if('=' == *(comm+0)){
+		nvram_set(SER2NET_NVRAM,"Password",(comm+1));
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar username_(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s",nvram_get(SER2NET_NVRAM,"Login"));
+	}
+	else if('=' == *(comm+0)){
+		nvram_set(SER2NET_NVRAM,"Login",(comm+1));
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar p2pkey(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s",nvram_get(SER2NET_NVRAM,"p2p5"));
+	}
+	else if('=' == *(comm+0)){
+		nvram_set(SER2NET_NVRAM,"p2p5",(comm+1));
+		system("killall T2uSvr;killall -9 T2uSvr;");
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+
+
+uchar AT_RBrDhcpc(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s",nvram_get(SER2NET_NVRAM,"brdhcpc"));
+		if(!strcmp(out,"")){
+			sprintf(out,"0");
+		}
+	}
+	else if('=' == *(comm+0)){
+		nvram_set_(SER2NET_NVRAM,"brdhcpc",(comm+1));
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+	
+uchar AT_RNoti(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s",nvram_get(SER2NET_NVRAM,"RNoti"));
+		if(!strcmp(out,"")){
+			sprintf(out,"0");
+		}
+	}
+	else if('=' == *(comm+0)){
+		nvram_set_(SER2NET_NVRAM,"RNoti",(comm+1));
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+	
+uchar AT_RNoti_(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"");
+	}
+	else if('=' == *(comm+0)){
+		if(!strcmp(nvram_get(SER2NET_NVRAM,"RNoti"),"1"))
+			if(G_serial_mode_get())
+				if('1' == *(comm+1)){
+					serial_buf_send("Notice:STA Connected.\r\n", sizeof("Notice:STA Connected.\r\n"));
+				}
+				else{
+					serial_buf_send("Notice:STA Disconnected.\r\n", sizeof("Notice:STA Disconnected.\r\n"));
+				}
+			
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+	
+	
+uchar AT_RBrCurIp(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		char if_addr[16];
+		char if_mask[16];
+		char if_gw[16];
+
+		if (-1 == getIfIp("br0", if_addr)) {
+			if_addr[0]=0;
+		}
+
+		if (-1 == getIfNetmask("br0", if_mask)) {
+			if_mask[0]=0;
+		}
+
+		if (-1 == getWanGateway( if_gw)) {
+			if_gw[0]=0;
+		}
+		
+		sprintf(out,"%s,%s,%s",if_addr,if_mask,if_gw);
+	}
+	else if('=' == *(comm+0)){
+		sprintf(out,"error");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+
+
+uchar AT_Rdhcpd(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s",nvram_get(SER2NET_NVRAM,"dhcpEnabled"));
+		if(!strcmp(out,"")){
+			sprintf(out,"0");
+		}
+	}
+	else if('=' == *(comm+0)){
+		nvram_set_(SER2NET_NVRAM,"dhcpEnabled",(comm+1));
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_Raphide(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s",nvram_get(SER2NET_NVRAM,"HideSSID"));
+		if(!strcmp(out,"")){
+			sprintf(out,"0");
+		}
+	}
+	else if('=' == *(comm+0)){
+		nvram_set_(SER2NET_NVRAM,"HideSSID",(comm+1));
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+uchar AT_Rapclient(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s",nvram_get(SER2NET_NVRAM,"ApCliEnable"));
+		if(!strcmp(out,"")){
+			sprintf(out,"0");
+		}
+	}
+	else if('=' == *(comm+0)){
+		nvram_set_(SER2NET_NVRAM,"ApCliEnable",(comm+1));
+		nvram_set_(SER2NET_NVRAM,"apClient",(comm+1));
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+
+
+
+uchar AT_RadioOff(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s",nvram_get(SER2NET_NVRAM,"RadioOff"));
+		if(!strcmp(out,"")){
+			sprintf(out,"0");
+		}
+	}
+	else if('=' == *(comm+0)){
+		nvram_set(SER2NET_NVRAM,"RadioOff",(comm+1));
+		if('0' == *(comm+1)){
+			system("iwpriv ra0 set RadioOn=1");
+			
+		}
+		else{
+			system("iwpriv ra0 set RadioOn=0");
+			
+		}
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+
+
+	
+uchar AT_WiFiMode(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s",nvram_get(SER2NET_NVRAM,"WirelessMode"));
+	}
+	else if('=' == *(comm+0)){
+		uchar *wirelessmode=(comm+1);
+		
+		nvram_set(SER2NET_NVRAM,"WirelessMode",wirelessmode);
+		
+		if (!strncmp(wirelessmode, "4", 2) || !strncmp(wirelessmode, "7", 2)) //g, gn
+			nvram_bufset(RT2860_NVRAM, "BasicRate", "351");
+		else if (!strncmp(wirelessmode, "1", 2)) //b
+			nvram_bufset(RT2860_NVRAM, "BasicRate", "3");
+		else //bg,bgn,n
+			nvram_bufset(RT2860_NVRAM, "BasicRate", "15");
+{
+	uchar buf[512];
+	
+	sprintf(buf,"iwpriv ra0 set WirelessMode=%s",nvram_get(SER2NET_NVRAM,"WirelessMode"));
+	system(buf);
+	sprintf(buf,"iwpriv ra0 set BasicRate=%s",nvram_get(SER2NET_NVRAM,"BasicRate"));
+	system(buf);
+}
+		
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+
+	
+#ifdef SER2NET_COM2
+extern nvram_t nvram_2[];
+extern int nvram_2_sizeof;
+
+
+uchar AT_COM2(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		uchar buf[128];
+		int i;
+		int len=nvram_2_sizeof/sizeof(nvram_t);
+		out[0]=0;
+		for(i=0;i<len;i++){
+			if(nvram_2[i].type == 's'){
+				sprintf(buf,"%s=%s\r\n",nvram_2[i].nvram_key,*(uchar **)nvram_2[i].p);
+				strcat(out,buf);
+			}
+			else if(nvram_2[i].type == 'i'){
+				sprintf(buf,"%s=%d\r\n",nvram_2[i].nvram_key,*(int *)nvram_2[i].p);
+				strcat(out,buf);
+			}
+			else if(nvram_2[i].type == 'u'){
+				sprintf(buf,"%s=%d\r\n",nvram_2[i].nvram_key,*(uchar *)nvram_2[i].p);
+				strcat(out,buf);
+			}
+		}
+	
+	}
+	else if('=' == *(comm+0)){
+		
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar COM2_ATs(uchar* comm,uchar*out)
+{
+	uchar ret=1;
+	int i,j;
+	uchar *p,*comm_;
+	
+	int len=nvram_2_sizeof/sizeof(nvram_t);
+	
+	comm_=comm+3;
+	p=comm_;
+	for(j=0;j<128;j++,p++)if((0 == *p)||('=' == *p))break;
+	
+	for(i=0;i<len;i++){
+		if((j == strlen(nvram_2[i].nvram_key))
+			&&(0 == memcmp(nvram_2[i].nvram_key,comm_,j))){
+				out[0]=0;
+	if('?' == *(p+1)){
+		uchar buf[128];
+		if(nvram_2[i].type == 's'){
+			sprintf(buf,"%s",*(uchar **)nvram_2[i].p);
+			strcat(out,buf);
+		}
+		else if(nvram_2[i].type == 'i'){
+			sprintf(buf,"%d",*(int *)nvram_2[i].p);
+			strcat(out,buf);
+		}
+		else if(nvram_2[i].type == 'u'){
+			sprintf(buf,"%d",*(uchar *)nvram_2[i].p);
+			strcat(out,buf);
+		}
+		else if(nvram_2[i].type == 'T'){	//tmp not save.
+			sprintf(buf,"%d",*(int *)nvram_2[i].p);
+			strcat(out,buf);
+		}
+	}
+	else if('=' == *(p+0)){
+		
+		if(nvram_2[i].type == 's'){
+			*(uchar **)nvram_2[i].p = at_set_value_(*(uchar **)nvram_2[i].p,p+1);
+		}
+		else if(nvram_2[i].type == 'i'){
+			*(int *)nvram_2[i].p = atoi(p+1);
+		}
+		else if(nvram_2[i].type == 'u'){
+			*(uchar *)nvram_2[i].p = atoi(p+1);
+		}
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+			ret=0;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+
+
+#endif
+
+
+uchar AT_packlen(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_serial_package_len);
+	}
+	else if('=' == *(comm+0)){
+		g_serial_package_len=atoi(comm+1);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+uchar AT_packtimeout(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_serial_package_time);
+	}
+	else if('=' == *(comm+0)){
+		g_serial_package_time=atoi(comm+1);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+uchar AT_packintertimeout(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_serial_package_interval_time);
+	}
+	else if('=' == *(comm+0)){
+		g_serial_package_interval_time=atoi(comm+1);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+
+
+uchar AT_escap(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_transparent_escape_en);
+	}
+	else if('=' == *(comm+0)){
+		g_transparent_escape_en=atoi(comm+1);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_escap2(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_transparent_escape2_en);
+	}
+	else if('=' == *(comm+0)){
+		g_transparent_escape2_en=atoi(comm+1);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_escap2_time(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_transparent_escape2_time);
+	}
+	else if('=' == *(comm+0)){
+		g_transparent_escape2_time=atoi(comm+1);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+
+
+extern uchar FLOW_CONTROL_;
+
+uchar AT_FLOW_CONTROL_RTS(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",FLOW_CONTROL_);
+	}
+	else if('=' == *(comm+0)){
+		FLOW_CONTROL_=atoi(comm+1);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+extern uchar XON_XOFF;
+
+uchar AT_XON_XOFF(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",XON_XOFF);
+	}
+	else if('=' == *(comm+0)){
+		XON_XOFF=atoi(comm+1);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+
+uchar config_do();
+
+uchar config_all_save_nvram();
+
+
+extern uchar Need_config_do;
+
+uchar AT_save(uchar* comm,uchar*out)
+{
+	if('1' != *(comm+1)){
+		sprintf(out,"");
+//		return;
+	}
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	config_all_save_nvram();
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	//config_do();
+	Need_config_do=1;
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	sprintf(out,"ok");
+}
+
+uchar AT_restart(uchar* comm,uchar*out)
+{
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	//config_do();
+	Need_config_do=1;
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	sprintf(out,"ok");
+}
+
+
+
+extern uint tim_all_len;
+extern uint tim_all_len2;
+
+
+uchar AT_status(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+
+	
+	TIM_DEBUG("in:%s(%d)(%d)\r\n",__FUNCTION__,__LINE__,statistics_serial_send);
+	TIM_DEBUG("in:%s(%d)(%d)\r\n",__FUNCTION__,__LINE__,tim_all_len);
+	TIM_DEBUG("in:%s(%d)(%d)\r\n",__FUNCTION__,__LINE__,tim_all_len2);
+	
+}
+
+
+extern uchar g_s2n_stat;
+
+	
+	
+uchar AT_s2n_stat(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_s2n_stat);
+	}
+	else if('=' == *(comm+0)){
+		sprintf(out,"error");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+	
+extern uchar C2_g_s2n_stat;
+
+uchar AT_s2n2_stat(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",C2_g_s2n_stat);
+	}
+	else if('=' == *(comm+0)){
+		sprintf(out,"error");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+
+
+
+void get_mac1_(uchar *p)
+{
+
+{
+	uint base=0;
+	uchar *px;
+
+	volatile uint x=4;
+	
+	base=((x<<16)+0x2e);	//0x40000
+	
+		px=flash_read2(base+0, 1);
+		if(px){
+			p[0]=*px;
+			free(px);
+		}
+		px=flash_read2(base+1, 1);
+		if(px){
+			p[1]=*px;
+			free(px);
+		}
+		px=flash_read2(base+2, 1);
+		if(px){
+			p[2]=*px;
+			free(px);
+		}
+		px=flash_read2(base+3, 1);
+		if(px){
+			p[3]=*px;
+			free(px);
+		}
+		px=flash_read2(base+4, 1);
+		if(px){
+			p[4]=*px;
+			free(px);
+		}
+		px=flash_read2(base+5, 1);
+		if(px){
+			p[5]=*px;
+			free(px);
+		}
+}
+
+
+
+	
+}
+
+
+void get_mac2_(uchar *p)
+{
+{
+	uint base=0;
+	uchar *px;
+
+	volatile uint x=4;
+	
+	base=((x<<16)+0x28);	//0x40000
+	
+		px=flash_read2(base+0, 1);
+		if(px){
+			p[0]=*px;
+			free(px);
+		}
+		px=flash_read2(base+1, 1);
+		if(px){
+			p[1]=*px;
+			free(px);
+		}
+		px=flash_read2(base+2, 1);
+		if(px){
+			p[2]=*px;
+			free(px);
+		}
+		px=flash_read2(base+3, 1);
+		if(px){
+			p[3]=*px;
+			free(px);
+		}
+		px=flash_read2(base+4, 1);
+		if(px){
+			p[4]=*px;
+			free(px);
+		}
+		px=flash_read2(base+5, 1);
+		if(px){
+			p[5]=*px;
+			free(px);
+		}
+}
+}
+
+	
+uchar AT_Get_MAC(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		uchar mac1[6];
+		uchar mac2[6];
+		get_mac1_(mac1);
+		get_mac2_(mac2);
+		sprintf(out,"%02X:%02X:%02X:%02X:%02X:%02X,%02X:%02X:%02X:%02X:%02X:%02X"
+			,mac1[0],mac1[1],mac1[2],mac1[3],mac1[4],mac1[5]
+			,mac2[0],mac2[1],mac2[2],mac2[3],mac2[4],mac2[5]);
+	}
+	else if('=' == *(comm+0)){
+		sprintf(out,"error");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+	
+	
+		
+uchar wifi_ConState(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		do{
+			FILE *fp;
+			char buf[512], *p;
+			int len;
+			
+			sprintf(out,"error");
+			if(((int)(fp = popen("iwpriv ra0 connStatus", "r")))<=0) {
+				TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				break;
+			}
+			 len = fread(buf, 1, sizeof(buf), fp);
+			 if((len < 10)||(len>=sizeof(buf))){
+				TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				pclose(fp);
+				break;
+			 }
+			pclose(fp);
+			 buf[len]=0;
+			 if(strstr(buf,"Disconnected")){
+				sprintf(out,"Disconnected");
+				TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+			 }
+			 else if(strstr(buf,"Connected")){
+				sprintf(out,"Connected");
+				TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+			 }
+			 else if(strstr(buf,"Invalid command")){
+				sprintf(out,"No Connection.");
+				TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+			 }
+			 else{
+				sprintf(out,buf);
+				TIM_DEBUG("in:%s(%d)(%s)\r\n",__FUNCTION__,__LINE__,buf);
+			 }
+		}while(0);
+	}
+	else if('=' == *(comm+0)){
+		sprintf(out,"error");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+	
+uchar wifi_Scan(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"error");
+		do{
+			
+			FILE *fp;
+			char buf[4096], *ptr;
+			char channel[4], ssid[186], bssid[20], security[23];
+			char signal[9], mode[7], ext_ch[7], net_type[3];
+			int i, space_start;
+
+			system("iwpriv ra0 set SiteSurvey=1");
+			if(((int)(fp = popen("iwpriv ra0 get_site_survey", "r")))<=0) {
+				fprintf(stderr, "%s: execute get_site_survey failed !\n", __func__);
+				break;
+			}
+					/*
+# iwpriv ra0 set SiteSurvey=1;iwpriv ra0 get_site_survey
+					ra0 	  get_site_survey:
+					Ch	SSID							 BSSID				 Security				Siganl(%)W-Mode  ExtCH	NT WPS DPID
+					4	HI-LINK 						 5c:63:bf:d9:3e:da	 WPA2PSK/AES			15		 11b/g/n NONE	In YES	   
+					10	ChinaNet-5Yyp					 00:25:12:74:39:09	 WPAPSK/TKIP			0		 11b/g	 NONE	In YES	   
+					1	HI-LINK_098C					 48:02:2a:00:09:8b	 WPA1PSKWPA2PSK/AES 	5		 11b/g/n NONE	In YES	   
+			
+					*/
+
+			memset(buf, 0, sizeof(buf));
+			fgets(buf, sizeof(buf), fp);
+//			fgets(buf, sizeof(buf), fp);
+//sprintf(out,1024*3,);
+			fread(buf,1,SERIAL_BUF_LEN-1,fp);
+			
+			pclose(fp);
+			
+			sprintf(out,"");
+{
+
+	uchar *p1,*p2;
+	p1=buf;
+	while(1){
+		p2=strstr(p1,"\n");
+		if(p2){
+			*p2=0;
+			if((strlen(out)+strlen(p1)+2) > (SERIAL_BUF_LEN-1))
+				break;
+			strcat(out,p1);
+			strcat(out,"\r\n");
+			p1=p2+1;
+		}
+		else{
+			strcat(out,p1);
+			break;
+		}
+	}
+
+}
+
+
+		}while(0);
+	}
+	else if('=' == *(comm+0)){
+		sprintf(out,"error");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+
+
+uchar AT_error(uchar* comm,uchar*out)
+{
+	sprintf(out,"ERROR");
+}
+
+
+
+
+
+uchar AT_netmode(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_AT_netmode);
+	}
+	else if('=' == *(comm+0)){
+TIM_DEBUG("in:%s(%d)(%s\r\n",__FUNCTION__,__LINE__,comm);
+		g_AT_netmode=atoi(comm+1);
+TIM_DEBUG("in:%s(%d)(%d\r\n",__FUNCTION__,__LINE__,g_AT_netmode);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar AT_wifi_conf(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		if(g_AT_wifi_conf)
+			sprintf(out,"%s",g_AT_wifi_conf);
+	}
+	else if('=' == *(comm+0)){
+		g_AT_wifi_conf = at_set_value_(g_AT_wifi_conf,(comm+1));
+TIM_DEBUG("in:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,g_AT_wifi_conf);
+		
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_discovery_udp_name(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		if(g_AT_discovery_udp_name)
+			sprintf(out,"%s",g_AT_discovery_udp_name);
+	}
+	else if('=' == *(comm+0)){
+		g_AT_discovery_udp_name = at_set_value_(g_AT_discovery_udp_name,(comm+1));
+TIM_DEBUG("in:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,g_AT_discovery_udp_name);
+		
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar AT_web_port(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		char *web_port=nvram_get(SER2NET_NVRAM,"web_port");
+		if(0 == strcmp(web_port,"")){
+			sprintf(out,"80");
+		}
+		else{
+			sprintf(out,"%s",web_port);
+		}
+	}
+	else if('=' == *(comm+0)){
+		
+		nvram_set(SER2NET_NVRAM,"web_port",(comm+1));
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_flash1(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		char *web_port=nvram_get(SER2NET_NVRAM,"flash1");
+		sprintf(out,"%s",web_port);
+	}
+	else if('=' == *(comm+0)){
+		nvram_set(SER2NET_NVRAM,"flash1",(comm+1));
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_flash2(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		char *web_port=nvram_get(SER2NET_NVRAM,"flash2");
+		sprintf(out,"%s",web_port);
+	}
+	else if('=' == *(comm+0)){
+		nvram_set(SER2NET_NVRAM,"flash2",(comm+1));
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_flash3(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		char *web_port=nvram_get(SER2NET_NVRAM,"flash3");
+		sprintf(out,"%s",web_port);
+	}
+	else if('=' == *(comm+0)){
+		nvram_set(SER2NET_NVRAM,"flash3",(comm+1));
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+
+
+	
+uchar AT_ROperMode(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s",nvram_get(SER2NET_NVRAM,"OperationMode"));
+	}
+	else if('=' == *(comm+0)){
+		uchar buf[64];
+		int mode=atoi(comm+1);
+
+		int oldmode=atoi(nvram_get(SER2NET_NVRAM,"OperationMode"));
+
+		if(mode!=oldmode){
+			switch(mode){
+				case 0:
+					system("ralink_init renew 2860 /etc_ro/Wireless/RT2860AP/AP_bridge_sta");
+					break;
+				case 1:
+					break;
+				case 2:
+					system("ralink_init renew 2860 /etc_ro/Wireless/RT2860AP/AP_sta");
+					break;
+				case 3:
+					system("ralink_init renew 2860 /etc_ro/Wireless/RT2860AP/AP_apclient_sta");
+					break;
+				default:
+					break;
+			}
+			
+
+			if((mode>=0)&&(mode<=3)){
+				nvram_close(SER2NET_NVRAM);
+				nvram_init(SER2NET_NVRAM);
+				sprintf(buf,"%d",mode);
+				nvram_set(SER2NET_NVRAM,"OperationMode",buf);
+			}
+		}
+		
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar AT_RstaChe(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"error");
+	}
+	else if('=' == *(comm+0)){
+
+		if('1' == *(comm+1))
+			system("echo 1 >/tmp/hlk_sta_check");
+		else
+			system("rm /tmp/hlk_sta_check");
+		
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_RstaRec(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"error");
+	}
+	else if('=' == *(comm+0)){
+		
+		system("echo 1 >/tmp/hlk_wifi_reconn");
+		
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar AT_RstaRec2(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"error");
+	}
+	else if('=' == *(comm+0)){
+		
+		system("iwpriv apcli0 set ApCliEnable=1");
+		
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar AT_RLANIp(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s,%s",nvram_get(SER2NET_NVRAM,"lan_ipaddr"),nvram_get(SER2NET_NVRAM,"lan_netmask"));
+	}
+	else if('=' == *(comm+0)){
+		uchar buf[64];
+		
+		
+		do{//net ip 
+			uchar ip[32];
+			uchar mask[32];
+			uchar gw[32];
+			uchar *p1,*p2;
+			
+			TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		
+			p1=(comm+1);
+			
+			p2=strchr(p1,',');
+			if(0 == p2){
+				TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				break;
+			}
+			snprintf(ip,MIN_(p2-p1+1,sizeof(ip)-1),p1);
+		
+			p1=p2+1;
+			snprintf(mask,sizeof(mask)-1,p1);
+		
+		
+		TIM_ERROR("in:%s(%d) (%s) (%s) (%s)\r\n",__FUNCTION__,__LINE__,ip,mask,gw);
+		
+		
+		{
+			nvram_set_(SER2NET_NVRAM,"lan_ipaddr",ip);
+			nvram_set_(SER2NET_NVRAM,"lan_netmask",mask);
+//			nvram_set_(SER2NET_NVRAM,"wan_gateway",gw);
+		}
+		
+			TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		}while(0);
+
+
+		
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar AT_Rdhcpd_ip(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s,%s,%s,%s",nvram_get(SER2NET_NVRAM,"dhcpStart"),nvram_get(SER2NET_NVRAM,"dhcpEnd"),nvram_get(SER2NET_NVRAM,"dhcpMask"),nvram_get(SER2NET_NVRAM,"dhcpGateway"));
+	}
+	else if('=' == *(comm+0)){
+		uchar buf[64];
+		
+		do{ //dhcpd ip
+			uchar ip[32];
+			uchar ip2[32];
+			uchar mask[32];
+			uchar gw[32];
+			uchar *p1,*p2;
+			
+			TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		
+			p1=(comm+1);
+			
+			p2=strchr(p1,',');
+			if(0 == p2){
+				TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				break;
+			}
+			snprintf(ip,MIN_(p2-p1+1,sizeof(ip)-1),p1);
+		
+			p1=p2+1;
+			p2=strchr(p1,',');
+			if(0 == p2){
+				TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				break;
+			}
+			snprintf(ip2,MIN_(p2-p1+1,sizeof(ip2)-1),p1);
+			
+			p1=p2+1;
+			p2=strchr(p1,',');
+			if(0 == p2){
+				TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				break;
+			}
+			snprintf(mask,MIN_(p2-p1+1,sizeof(mask)-1),p1);
+		
+		
+			p1=p2+1;
+			snprintf(gw,sizeof(gw)-1,p1);
+		
+		TIM_DEBUG("in:%s(%d) (%s) (%s) (%s)\r\n",__FUNCTION__,__LINE__,ip,mask,gw);
+		
+		{
+			nvram_set_(SER2NET_NVRAM,"dhcpStart",ip);
+			nvram_set_(SER2NET_NVRAM,"dhcpEnd",ip2);
+			nvram_set_(SER2NET_NVRAM,"dhcpMask",mask);
+			nvram_set_(SER2NET_NVRAM,"dhcpGateway",gw);
+		}
+		
+			TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		}while(0);
+
+		
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar AT_RapWIFI(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		uchar ty[32];
+
+		uchar *auth;
+		uchar *enc;
+
+		auth=nvram_get(SER2NET_NVRAM,"AuthMode");
+		enc=nvram_get(SER2NET_NVRAM,"EncrypType");
+		
+		sprintf(ty,"");
+		
+		if(0 == strcmp(auth,"OPEN")){
+			sprintf(ty,"none");
+		}
+		else if(0 == strcmp(enc,"WEP")){
+			if(0 == strcmp(auth,"OPEN")){
+				sprintf(ty,"wep_open");
+			}
+			else if(0 == strcmp(enc,"SHARED")){
+				sprintf(ty,"wep");
+			}
+		}
+		else if(0 == strcmp(auth,"WPAPSK")){
+			if(0 == strcmp(enc,"TKIP")){
+				sprintf(ty,"wpa_tkip");
+			}
+			else if(0 == strcmp(enc,"AES")){
+				sprintf(ty,"wpa_aes");
+			}
+		}
+		else if(0 == strcmp(auth,"WPA2PSK")){
+			if(0 == strcmp(enc,"TKIP")){
+				sprintf(ty,"wpa2_tkip");
+			}
+			else if(0 == strcmp(enc,"AES")){
+				sprintf(ty,"wpa2_aes");
+			}
+		}
+		else if(0 == strcmp(auth,"WPAPSKWPA2PSK")){
+			if(0 == strcmp(enc,"TKIP")){
+				sprintf(ty,"wpawpa2_tkip");
+			}
+			else if(0 == strcmp(enc,"AES")){
+				sprintf(ty,"wpawpa2_aes");
+			}
+		}
+
+		
+		sprintf(out,"%s,%s,%s",nvram_get(SER2NET_NVRAM,"SSID1"),ty,nvram_get(SER2NET_NVRAM,"WPAPSK1"));
+
+		
+	}
+	else if('=' == *(comm+0)){
+		uchar buf[64];
+		
+		do{//wifi conf
+			uchar ssid[32];
+			uchar keytype[32];
+			uchar key[32];
+			uchar *p1,*p2;
+			
+			TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		
+			p1=(comm+1);
+			
+			p2=strchr(p1,',');
+			if(0 == p2){
+				TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				break;
+			}
+			snprintf(ssid,MIN_(p2-p1+1,sizeof(ssid)),p1);
+		
+			p1=p2+1;
+			p2=strchr(p1,',');
+			if(0 == p2){
+				TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				break;
+			}
+			snprintf(keytype,MIN_(p2-p1+1,sizeof(keytype)),p1);
+		
+			p1=p2+1;
+			snprintf(key,sizeof(key)-1,p1);
+		
+		
+		TIM_DEBUG("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n",__FUNCTION__,__LINE__,g_AT_wifi_conf,ssid,keytype,key);
+		
+		{
+	nvram_set_(SER2NET_NVRAM,"SSID1",ssid);
+
+	if(0 == strcmp(keytype,"none")){
+		nvram_set_(SER2NET_NVRAM,"AuthMode","OPEN");nvram_set_(SER2NET_NVRAM,"EncrypType","NONE");
+	}
+	else if(0 == strcmp(keytype,"wep")){
+		
+		nvram_set_(SER2NET_NVRAM,"AuthMode","SHARED");nvram_set_(SER2NET_NVRAM,"EncrypType","WEP");
+		nvram_set_(SER2NET_NVRAM,"DefaultKeyID","1");
+		nvram_set_(SER2NET_NVRAM,"Key1Type","1");
+		nvram_set_(SER2NET_NVRAM,"Key1Str1",key);
+	}
+	else if(0 == strcmp(keytype,"wep_open")){
+		
+		nvram_set_(SER2NET_NVRAM,"AuthMode","OPEN");nvram_set_(SER2NET_NVRAM,"EncrypType","WEP");
+		nvram_set_(SER2NET_NVRAM,"DefaultKeyID","1");
+		nvram_set_(SER2NET_NVRAM,"Key1Type","1");
+		nvram_set_(SER2NET_NVRAM,"Key1Str1",key);
+	}
+	else if(0 == strcmp(keytype,"wpa_tkip")){
+		nvram_set_(SER2NET_NVRAM,"AuthMode","WPAPSK");nvram_set_(SER2NET_NVRAM,"EncrypType","TKIP");
+		nvram_set_(SER2NET_NVRAM,"WPAPSK1",key);
+	}
+	else if(0 == strcmp(keytype,"wpa_aes")){
+		nvram_set_(SER2NET_NVRAM,"AuthMode","WPAPSK");nvram_set_(SER2NET_NVRAM,"EncrypType","AES");
+		nvram_set_(SER2NET_NVRAM,"WPAPSK1",key);
+	}
+	else if(0 == strcmp(keytype,"wpa2_tkip")){
+		nvram_set_(SER2NET_NVRAM,"AuthMode","WPA2PSK");nvram_set_(SER2NET_NVRAM,"EncrypType","TKIP");
+		nvram_set_(SER2NET_NVRAM,"WPAPSK1",key);
+	}
+	else if(0 == strcmp(keytype,"wpa2_aes")){
+		nvram_set_(SER2NET_NVRAM,"AuthMode","WPA2PSK");nvram_set_(SER2NET_NVRAM,"EncrypType","AES");
+		nvram_set_(SER2NET_NVRAM,"WPAPSK1",key);
+	}
+	else if(0 == strcmp(keytype,"wpawpa2_tkip")){
+		nvram_set_(SER2NET_NVRAM,"AuthMode","WPAPSKWPA2PSK");nvram_set_(SER2NET_NVRAM,"EncrypType","TKIP");
+		nvram_set_(SER2NET_NVRAM,"WPAPSK1",key);
+	}
+	else if(0 == strcmp(keytype,"wpawpa2_aes")){
+		nvram_set_(SER2NET_NVRAM,"AuthMode","WPAPSKWPA2PSK");nvram_set_(SER2NET_NVRAM,"EncrypType","AES");
+		nvram_set_(SER2NET_NVRAM,"WPAPSK1",key);
+	}
+	else{
+		nvram_set_(SER2NET_NVRAM,"AuthMode","WPAPSKWPA2PSK");nvram_set_(SER2NET_NVRAM,"EncrypType","AES");
+		nvram_set_(SER2NET_NVRAM,"WPAPSK1",key);
+	}
+	
+	nvram_set_(SER2NET_NVRAM,"RekeyMethod","TIME");
+
+}
+		
+		
+		
+			TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		}while(0);
+		
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar AT_RapWIFI2(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		uchar ty[32];
+
+		uchar *auth;
+		uchar *enc;
+
+		auth=nvram_get(SER2NET_NVRAM,"AuthMode");
+		enc=nvram_get(SER2NET_NVRAM,"EncrypType");
+		
+		sprintf(ty,"");
+		
+		if(0 == strcmp(auth,"OPEN")){
+			sprintf(ty,"none");
+		}
+		else if(0 == strcmp(enc,"WEP")){
+			if(0 == strcmp(auth,"OPEN")){
+				sprintf(ty,"wep_open");
+			}
+			else if(0 == strcmp(enc,"SHARED")){
+				sprintf(ty,"wep");
+			}
+		}
+		else if(0 == strcmp(auth,"WPAPSK")){
+			if(0 == strcmp(enc,"TKIP")){
+				sprintf(ty,"wpa_tkip");
+			}
+			else if(0 == strcmp(enc,"AES")){
+				sprintf(ty,"wpa_aes");
+			}
+		}
+		else if(0 == strcmp(auth,"WPA2PSK")){
+			if(0 == strcmp(enc,"TKIP")){
+				sprintf(ty,"wpa2_tkip");
+			}
+			else if(0 == strcmp(enc,"AES")){
+				sprintf(ty,"wpa2_aes");
+			}
+		}
+		else if(0 == strcmp(auth,"WPAPSKWPA2PSK")){
+			if(0 == strcmp(enc,"TKIP")){
+				sprintf(ty,"wpawpa2_tkip");
+			}
+			else if(0 == strcmp(enc,"AES")){
+				sprintf(ty,"wpawpa2_aes");
+			}
+		}
+
+		
+		sprintf(out,"%s,%s,%s",nvram_get(SER2NET_NVRAM,"SSID1"),ty,nvram_get(SER2NET_NVRAM,"WPAPSK1"));
+
+		
+	}
+	else if('=' == *(comm+0)){
+		uchar buf[64];
+		
+		do{//wifi conf
+			uchar ssid[32];
+			uchar keytype[32];
+			uchar key[32];
+			uchar *p1,*p2;
+			uchar s_len;
+			
+			TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		
+			p1=(comm+1);
+			s_len=atoi(p1);
+
+			
+			p2=strchr(p1,',');
+			if(0 == p2){
+				TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				break;
+			}
+			p1=p2+1;
+			
+			if((s_len+2)>strlen(p1)){
+				TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				break;
+			}
+			
+			p2=p1+s_len;
+			snprintf(ssid,MIN_(p2-p1+1,sizeof(ssid)),p1);
+		
+			p1=p2+1;
+			p2=strchr(p1,',');
+			if(0 == p2){
+				TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				break;
+			}
+			snprintf(keytype,MIN_(p2-p1+1,sizeof(keytype)),p1);
+		
+			p1=p2+1;
+			snprintf(key,sizeof(key)-1,p1);
+		
+		
+		TIM_DEBUG("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n",__FUNCTION__,__LINE__,g_AT_wifi_conf,ssid,keytype,key);
+		
+		{
+	nvram_set_(SER2NET_NVRAM,"SSID1",ssid);
+
+	if(0 == strcmp(keytype,"none")){
+		nvram_set_(SER2NET_NVRAM,"AuthMode","OPEN");nvram_set_(SER2NET_NVRAM,"EncrypType","NONE");
+	}
+	else if(0 == strcmp(keytype,"wep")){
+		
+		nvram_set_(SER2NET_NVRAM,"AuthMode","SHARED");nvram_set_(SER2NET_NVRAM,"EncrypType","WEP");
+		nvram_set_(SER2NET_NVRAM,"DefaultKeyID","1");
+		nvram_set_(SER2NET_NVRAM,"Key1Type","1");
+		nvram_set_(SER2NET_NVRAM,"Key1Str1",key);
+	}
+	else if(0 == strcmp(keytype,"wep_open")){
+		
+		nvram_set_(SER2NET_NVRAM,"AuthMode","OPEN");nvram_set_(SER2NET_NVRAM,"EncrypType","WEP");
+		nvram_set_(SER2NET_NVRAM,"DefaultKeyID","1");
+		nvram_set_(SER2NET_NVRAM,"Key1Type","1");
+		nvram_set_(SER2NET_NVRAM,"Key1Str1",key);
+	}
+	else if(0 == strcmp(keytype,"wpa_tkip")){
+		nvram_set_(SER2NET_NVRAM,"AuthMode","WPAPSK");nvram_set_(SER2NET_NVRAM,"EncrypType","TKIP");
+		nvram_set_(SER2NET_NVRAM,"WPAPSK1",key);
+	}
+	else if(0 == strcmp(keytype,"wpa_aes")){
+		nvram_set_(SER2NET_NVRAM,"AuthMode","WPAPSK");nvram_set_(SER2NET_NVRAM,"EncrypType","AES");
+		nvram_set_(SER2NET_NVRAM,"WPAPSK1",key);
+	}
+	else if(0 == strcmp(keytype,"wpa2_tkip")){
+		nvram_set_(SER2NET_NVRAM,"AuthMode","WPA2PSK");nvram_set_(SER2NET_NVRAM,"EncrypType","TKIP");
+		nvram_set_(SER2NET_NVRAM,"WPAPSK1",key);
+	}
+	else if(0 == strcmp(keytype,"wpa2_aes")){
+		nvram_set_(SER2NET_NVRAM,"AuthMode","WPA2PSK");nvram_set_(SER2NET_NVRAM,"EncrypType","AES");
+		nvram_set_(SER2NET_NVRAM,"WPAPSK1",key);
+	}
+	else if(0 == strcmp(keytype,"wpawpa2_tkip")){
+		nvram_set_(SER2NET_NVRAM,"AuthMode","WPAPSKWPA2PSK");nvram_set_(SER2NET_NVRAM,"EncrypType","TKIP");
+		nvram_set_(SER2NET_NVRAM,"WPAPSK1",key);
+	}
+	else if(0 == strcmp(keytype,"wpawpa2_aes")){
+		nvram_set_(SER2NET_NVRAM,"AuthMode","WPAPSKWPA2PSK");nvram_set_(SER2NET_NVRAM,"EncrypType","AES");
+		nvram_set_(SER2NET_NVRAM,"WPAPSK1",key);
+	}
+	else{
+		nvram_set_(SER2NET_NVRAM,"AuthMode","WPAPSKWPA2PSK");nvram_set_(SER2NET_NVRAM,"EncrypType","AES");
+		nvram_set_(SER2NET_NVRAM,"WPAPSK1",key);
+	}
+	
+	nvram_set_(SER2NET_NVRAM,"RekeyMethod","TIME");
+
+}
+		
+		
+		
+			TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		}while(0);
+		
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+	
+	
+		
+uchar AT_RstaStatus(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		int mode=atoi(nvram_get(SER2NET_NVRAM,"OperationMode"));
+
+		switch (mode){
+			case 2:
+				out[0]=0;
+				wifi_ConState(comm,out);
+{
+	
+	if(strstr(out,"Connected")){
+		sprintf(out,"Connected");
+		TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+/*
+ra0       Ralink STA  ESSID:"HI-LINK_D879"  Nickname:"RT2860STA"
+          Mode:Managed  Frequency=2.412 GHz  Access Point: 44:33:4C:B1:D8:78   
+          Bit Rate=58.5 Mb/s   
+          RTS thr:off   Fragment thr:off
+          Encryption key:5621-EACF-2C40-6E6B-3D61-FE96-59A8-8D20 [3]   Security mode:restricted   Security mode:open
+          Link Quality=67/100  Signal level:-72 dBm  Noise level:-78 dBm
+          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0
+          Tx excessive retries:0  Invalid misc:0   Missed beacon:0
+
+
+*/
+{
+	uchar mac[64];
+	uchar i;
+
+	mac[0]=0;
+	do{
+		FILE *fp;
+		char buf[512], *p;
+		int len;
+		
+//		sprintf(out,"error");
+		if(((int)(fp = popen("iwconfig ra0|grep \"Access Point: \"", "r")))<=0) {
+			TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+			break;
+		}
+		 len = fread(buf, 1, sizeof(buf), fp);
+		 if((len < 10)||(len>=sizeof(buf))){
+			TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+			pclose(fp);
+			break;
+		 }
+		pclose(fp);
+		 buf[len]=0;
+		 if(strstr(buf,"Access Point: ")){
+		 	sprintf(mac,"%s",(strstr(buf,"Access Point: ")+strlen("Access Point: ")));
+		 }
+		 else{
+//			sprintf(out,"Disconnected");
+			TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		 }
+	}while(0);
+
+	mac[sizeof(mac)-1]=0;
+
+	for(i=0;i<sizeof(mac);i++){
+		if((mac[i]>='A')&&(mac[i]<='Z')){
+			mac[i]=mac[i]-'A'+'a';
+		}
+		if(((mac[i]>='0')&&(mac[i]<='9'))||((mac[i]>='a')&&(mac[i]<='f'))||((mac[i]>='A')&&(mac[i]<='F'))||((mac[i]==':'))){
+			
+		}
+		else{
+			mac[i]=0;
+			break;
+
+		}
+		if(0 == mac[i])
+			break;
+	}
+TIM_ERROR("ERROR:%s(%d)  (%s)\r\n",__FUNCTION__,__LINE__,mac);
+TIM_ERROR("ERROR:%s(%d)  (%s)\r\n",__FUNCTION__,__LINE__,out);
+	
+	system("iwpriv ra0 set SiteSurvey=1");
+
+do{
+	FILE *fp;
+	char buf[512], *p;
+	int len;
+
+	if(!(fp = popen("iwpriv ra0 get_site_survey", "r"))) {
+		TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		break;
+	}
+
+	memset(buf, 0, sizeof(buf));
+	fgets(buf, sizeof(buf), fp);
+	fgets(buf, sizeof(buf), fp);
+	while (fgets(buf, sizeof(buf), fp)) {
+		if (strlen(buf) < 4)
+			break;
+/*
+# iwpriv ra0 set SiteSurvey=1;iwpriv ra0 get_site_survey
+ra0       get_site_survey:
+Ch  SSID                             BSSID               Security               Siganl(%)W-Mode  ExtCH  NT WPS DPID
+4   HI-LINK                          5c:63:bf:d9:3e:da   WPA2PSK/AES            15       11b/g/n NONE   In YES     
+10  ChinaNet-5Yyp                    00:25:12:74:39:09   WPAPSK/TKIP            0        11b/g   NONE   In YES     
+1   HI-LINK_098C                     48:02:2a:00:09:8b   WPA1PSKWPA2PSK/AES     5        11b/g/n NONE   In YES     
+
+*/	
+		if(strstr(buf,mac)){
+TIM_ERROR("ERROR:%s(%d)  (%s)\r\n",__FUNCTION__,__LINE__,out);
+			strcat(out,"\r\n");
+TIM_ERROR("ERROR:%s(%d)  (%s)\r\n",__FUNCTION__,__LINE__,out);
+			strcat(out,buf);
+TIM_ERROR("ERROR:%s(%d)  (%s)\r\n",__FUNCTION__,__LINE__,out);
+			break;
+		}
+	}
+	pclose(fp);
+
+}while(0);
+
+}
+
+		
+	 }
+	else {
+		
+	}
+
+
+
+
+}
+
+				break;
+			case 0:
+			case 3:
+{
+	char buf[4096];
+	char buf2[4096];
+
+				system("iwpriv apcli0 show connStatus");
+			
+			{
+				FILE *fp;
+			
+				uchar connected=0;
+			
+				uchar *p;
+				int len;
+				if(!(fp = popen("logread", "r"))) {
+					TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+					return 0;
+				}
+			
+				memset(buf, 0, sizeof(buf));
+			
+				
+				while (fgets(buf, sizeof(buf), fp)) {
+					if(strstr(buf,"ApCli0 Connected AP : ")){
+						if(strstr(buf,"ApCli0 Connected AP : Disconnect")){
+							connected=0;
+						}
+						else{
+							connected=1;
+							sprintf(buf2,buf);
+						}
+					}
+				}
+			
+				pclose(fp);
+			
+				if(connected){
+					sprintf(out,"Connected");
+
+				
+	{
+		uchar mac[64];
+		uchar i;
+	
+		mac[0]=0;
+		
+TIM_ERROR("in:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,buf2);
+TIM_ERROR("in:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,mac);
+
+		snprintf(mac,sizeof(mac)-1,"%s",(strstr(buf2,"ApCli0 Connected AP : ")+strlen("ApCli0 Connected AP : ")));
+
+TIM_ERROR("in:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,buf2);
+
+		mac[sizeof(mac)-1]=0;
+	
+		for(i=0;i<sizeof(mac);i++){
+			if((mac[i]>='A')&&(mac[i]<='Z')){
+				mac[i]=mac[i]-'A'+'a';
+			}
+			if(((mac[i]>='0')&&(mac[i]<='9'))||((mac[i]>='a')&&(mac[i]<='f'))||((mac[i]>='A')&&(mac[i]<='F'))||((mac[i]==':'))){
+				
+			}
+			else{
+				mac[i]=0;
+				break;
+	
+			}
+			if(0 == mac[i])
+				break;
+		}
+	TIM_ERROR("ERROR:%s(%d)  (%s)\r\n",__FUNCTION__,__LINE__,mac);
+	TIM_ERROR("ERROR:%s(%d)  (%s)\r\n",__FUNCTION__,__LINE__,out);
+		
+		system("iwpriv ra0 set SiteSurvey=1");
+	
+	do{
+		FILE *fp;
+		char buf[512], *p;
+		int len;
+	
+		if(!(fp = popen("iwpriv ra0 get_site_survey", "r"))) {
+			TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+			break;
+		}
+	
+		memset(buf, 0, sizeof(buf));
+		fgets(buf, sizeof(buf), fp);
+		fgets(buf, sizeof(buf), fp);
+		while (fgets(buf, sizeof(buf), fp)) {
+			if (strlen(buf) < 4)
+				break;
+	/*
+# iwpriv ra0 set SiteSurvey=1;iwpriv ra0 get_site_survey
+	ra0 	  get_site_survey:
+	Ch	SSID							 BSSID				 Security				Siganl(%)W-Mode  ExtCH	NT WPS DPID
+	4	HI-LINK 						 5c:63:bf:d9:3e:da	 WPA2PSK/AES			15		 11b/g/n NONE	In YES	   
+	10	ChinaNet-5Yyp					 00:25:12:74:39:09	 WPAPSK/TKIP			0		 11b/g	 NONE	In YES	   
+	1	HI-LINK_098C					 48:02:2a:00:09:8b	 WPA1PSKWPA2PSK/AES 	5		 11b/g/n NONE	In YES	   
+	
+	*/	
+			if(strstr(buf,mac)){
+	TIM_ERROR("ERROR:%s(%d)  (%s)\r\n",__FUNCTION__,__LINE__,out);
+				strcat(out,"\r\n");
+	TIM_ERROR("ERROR:%s(%d)  (%s)\r\n",__FUNCTION__,__LINE__,out);
+				strcat(out,buf);
+	TIM_ERROR("ERROR:%s(%d)  (%s)\r\n",__FUNCTION__,__LINE__,out);
+				break;
+			}
+		}
+		pclose(fp);
+	
+	}while(0);
+	
+	}
+
+
+
+				}
+				else{
+					sprintf(out,"Disconnected");
+				}
+			}
+
+}
+				break;
+			default:
+				sprintf(out,"error:no sta connect");
+				break;
+		}
+
+		
+//		sprintf(out,"%s",nvram_get(SER2NET_NVRAM,"OperationMode"));
+	}
+	else if('=' == *(comm+0)){
+		sprintf(out,"error");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+	
+	
+		
+uchar AT_RstaStatus2(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		int mode=atoi(nvram_get(SER2NET_NVRAM,"OperationMode"));
+
+		switch (mode){
+			case 2:
+				out[0]=0;
+				wifi_ConState(comm,out);
+
+
+				break;
+			case 0:
+			case 3:
+{
+	char buf[4096];
+	char buf2[4096];
+
+				system("iwpriv apcli0 show connStatus");
+			
+			{
+				FILE *fp;
+			
+				uchar connected=0;
+			
+				uchar *p;
+				int len;
+				if(!(fp = popen("logread", "r"))) {
+					TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+					return 0;
+				}
+			
+				memset(buf, 0, sizeof(buf));
+			
+				
+				while (fgets(buf, sizeof(buf), fp)) {
+					if(strstr(buf,"ApCli0 Connected AP : ")){
+						if(strstr(buf,"ApCli0 Connected AP : Disconnect")){
+							connected=0;
+						}
+						else{
+							connected=1;
+							sprintf(buf2,buf);
+						}
+					}
+				}
+			
+				pclose(fp);
+			
+				if(connected){
+					sprintf(out,"Connected");
+				}
+				else{
+					sprintf(out,"Disconnected");
+				}
+			}
+
+}
+				break;
+			default:
+				sprintf(out,"error:no sta connect");
+				break;
+		}
+
+		
+//		sprintf(out,"%s",nvram_get(SER2NET_NVRAM,"OperationMode"));
+	}
+	else if('=' == *(comm+0)){
+		sprintf(out,"error");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+
+uchar AT_RstaWIFI(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+if(0 == strcmp("2",nvram_get(SER2NET_NVRAM,"OperationMode"))){
+	
+	uchar ty[32];
+	
+	uchar *auth;
+	uchar *enc;
+	
+	enc=nvram_get(SER2NET_NVRAM,"staEncrypt");
+	auth=nvram_get(SER2NET_NVRAM,"staAuth");
+	
+	sprintf(ty,"");
+	
+	if(0 == strcmp(enc,"0")){
+		sprintf(ty,"none");
+	}
+	else if(0 == strcmp(enc,"1")){
+		if(0 == strcmp(auth,"0")){
+			sprintf(ty,"wep_open");
+		}
+		else if(0 == strcmp(auth,"1")){
+			sprintf(ty,"wep");
+		}
+	}
+	else if(0 == strcmp(auth,"4")){
+		if(0 == strcmp(enc,"4")){
+			sprintf(ty,"wpa_tkip");
+		}
+		else if(0 == strcmp(enc,"6")){
+			sprintf(ty,"wpa_aes");
+		}
+	}
+	else if(0 == strcmp(auth,"7")){
+		if(0 == strcmp(enc,"4")){
+			sprintf(ty,"wpa2_tkip");
+		}
+		else if(0 == strcmp(enc,"6")){
+			sprintf(ty,"wpa2_aes");
+		}
+	}
+	
+	sprintf(out,"%s,%s,%s",nvram_get(SER2NET_NVRAM,"staSSID"),ty,nvram_get(SER2NET_NVRAM,"staWpaPsk"));
+	
+	
+
+}
+else{
+	
+	uchar ty[32];
+	
+	uchar *auth;
+	uchar *enc;
+	
+	enc=nvram_get(SER2NET_NVRAM,"ApCliEncrypType");
+	auth=nvram_get(SER2NET_NVRAM,"ApCliAuthMode");
+	
+	sprintf(ty,"");
+	
+	if(0 == strcmp(enc,"NONE")){
+		sprintf(ty,"none");
+	}
+	else if(0 == strcmp(enc,"WEP")){
+		if(0 == strcmp(auth,"OPEN")){
+			sprintf(ty,"wep_open");
+		}
+		else if(0 == strcmp(auth,"SHARED")){
+			sprintf(ty,"wep");
+		}
+	}
+	else if(0 == strcmp(auth,"WPAPSK")){
+		if(0 == strcmp(enc,"TKIP")){
+			sprintf(ty,"wpa_tkip");
+		}
+		else if(0 == strcmp(enc,"AES")){
+			sprintf(ty,"wpa_aes");
+		}
+	}
+	else if(0 == strcmp(auth,"WPA2PSK")){
+		if(0 == strcmp(enc,"TKIP")){
+			sprintf(ty,"wpa2_tkip");
+		}
+		else if(0 == strcmp(enc,"AES")){
+			sprintf(ty,"wpa2_aes");
+		}
+	}
+	
+	sprintf(out,"%s,%s,%s",nvram_get(SER2NET_NVRAM,"ApCliSsid"),ty,nvram_get(SER2NET_NVRAM,"ApCliWPAPSK"));
+	
+	
+
+}
+		
+	}
+	else if('=' == *(comm+0)){
+		uchar buf[64];
+		
+		do{//wifi conf
+			uchar ssid[32];
+			uchar keytype[32];
+			uchar key[32];
+			uchar *p1,*p2;
+			
+			TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		
+			p1=(comm+1);
+			
+			p2=strchr(p1,',');
+			if(0 == p2){
+				TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				break;
+			}
+			snprintf(ssid,MIN_(p2-p1+1,sizeof(ssid)),p1);
+		
+			p1=p2+1;
+			p2=strchr(p1,',');
+			if(0 == p2){
+				TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				break;
+			}
+			snprintf(keytype,MIN_(p2-p1+1,sizeof(keytype)),p1);
+		
+			p1=p2+1;
+			snprintf(key,sizeof(key)-1,p1);
+		
+		
+		TIM_DEBUG("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n",__FUNCTION__,__LINE__,g_AT_wifi_conf,ssid,keytype,key);
+		
+if(0 == strcmp("2",nvram_get(SER2NET_NVRAM,"OperationMode"))){
+	nvram_set_(SER2NET_NVRAM,"staSSID",ssid);
+
+	if(0 == strcmp(keytype,"none")){
+		
+		nvram_set_(SER2NET_NVRAM,"staEncrypt","0");
+		nvram_set_(SER2NET_NVRAM,"staAuth","0");
+		nvram_set_(SER2NET_NVRAM,"staWpaPsk","0");
+		nvram_set_(SER2NET_NVRAM,"staKey1","0");
+	}
+	else if((0 == strcmp(keytype,"wep"))
+		||(0 == strcmp(keytype,"wep_shared"))){
+		
+		nvram_set_(SER2NET_NVRAM,"staAuth","1");
+		nvram_set_(SER2NET_NVRAM,"staEncrypt","1");
+		nvram_set_(SER2NET_NVRAM,"staWpaPsk","0");
+		nvram_set_(SER2NET_NVRAM,"staKey1Type","1");
+		nvram_set_(SER2NET_NVRAM,"staKey1",key);
+		
+//hex
+//		nvram_set_(SER2NET_NVRAM,"staKey1Type","0");
+//		nvram_set_(SER2NET_NVRAM,"staKey1",key);
+
+//128bit
+//staKey1Length=1
+
+		
+	}
+	else if((0 == strcmp(keytype,"wep_open"))){
+		
+		nvram_set_(SER2NET_NVRAM,"staAuth","0");
+		nvram_set_(SER2NET_NVRAM,"staEncrypt","1");
+		nvram_set_(SER2NET_NVRAM,"staWpaPsk","0");
+		nvram_set_(SER2NET_NVRAM,"staKey1Type","1");
+		nvram_set_(SER2NET_NVRAM,"staKey1",key);
+		
+//hex
+//		nvram_set_(SER2NET_NVRAM,"staKey1Type","0");
+//		nvram_set_(SER2NET_NVRAM,"staKey1",key);
+
+//128bit
+//staKey1Length=1
+
+		
+	}
+	else if(0 == strcmp(keytype,"wpa_tkip")){
+		nvram_set_(SER2NET_NVRAM,"staEncrypt","4");
+		nvram_set_(SER2NET_NVRAM,"staAuth","4");
+		nvram_set_(SER2NET_NVRAM,"staWpaPsk",key);
+	}
+	else if(0 == strcmp(keytype,"wpa_aes")){
+		nvram_set_(SER2NET_NVRAM,"staEncrypt","6");
+		nvram_set_(SER2NET_NVRAM,"staAuth","4");
+		nvram_set_(SER2NET_NVRAM,"staWpaPsk",key);
+	}
+	else if(0 == strcmp(keytype,"wpa2_tkip")){
+		nvram_set_(SER2NET_NVRAM,"staEncrypt","4");
+		nvram_set_(SER2NET_NVRAM,"staAuth","7");
+		nvram_set_(SER2NET_NVRAM,"staWpaPsk",key);
+	}
+	else if(0 == strcmp(keytype,"wpa2_aes")){
+		nvram_set_(SER2NET_NVRAM,"staEncrypt","6");
+		nvram_set_(SER2NET_NVRAM,"staAuth","7");
+		nvram_set_(SER2NET_NVRAM,"staWpaPsk",key);
+	}
+	else if(0 == strcmp(keytype,"auto")){
+		nvram_set_(SER2NET_NVRAM,"g_AT_wifi_autoed","0");
+	}
+	else{
+		nvram_set_(SER2NET_NVRAM,"staEncrypt","6");
+		nvram_set_(SER2NET_NVRAM,"staAuth","7");
+		nvram_set_(SER2NET_NVRAM,"staWpaPsk",key);
+	}
+	
+	nvram_set_(SER2NET_NVRAM,"RekeyMethod","TIME");
+
+}
+else{
+	nvram_set_(SER2NET_NVRAM,"ApCliSsid",ssid);
+
+	if(0 == strcmp(keytype,"none")){
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","OPEN");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","NONE");
+	}
+	else if(0 == strcmp(keytype,"wep")){
+		
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","SHARED");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","WEP");
+		nvram_set_(SER2NET_NVRAM,"ApCliDefaultKeyID","1");
+		nvram_set_(SER2NET_NVRAM,"ApCliKey1Type","1");
+		nvram_set_(SER2NET_NVRAM,"ApCliKey1Str",key);
+	}
+	else if(0 == strcmp(keytype,"wep_open")){
+		
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","OPEN");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","WEP");
+		nvram_set_(SER2NET_NVRAM,"ApCliDefaultKeyID","1");
+		nvram_set_(SER2NET_NVRAM,"ApCliKey1Type","1");
+		nvram_set_(SER2NET_NVRAM,"ApCliKey1Str",key);
+	}
+	else if(0 == strcmp(keytype,"wpa_tkip")){
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","WPAPSK");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","TKIP");
+		nvram_set_(SER2NET_NVRAM,"ApCliWPAPSK",key);
+	}
+	else if(0 == strcmp(keytype,"wpa_aes")){
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","ApCliWPAPSK");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","AES");
+		nvram_set_(SER2NET_NVRAM,"ApCliWPAPSK",key);
+	}
+	else if(0 == strcmp(keytype,"wpa2_tkip")){
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","WPA2PSK");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","TKIP");
+		nvram_set_(SER2NET_NVRAM,"ApCliWPAPSK",key);
+	}
+	else if(0 == strcmp(keytype,"wpa2_aes")){
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","WPA2PSK");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","AES");
+		nvram_set_(SER2NET_NVRAM,"ApCliWPAPSK",key);
+	}
+	else if(0 == strcmp(keytype,"wpawpa2_tkip")){
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","WPAPSKWPA2PSK");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","TKIP");
+		nvram_set_(SER2NET_NVRAM,"ApCliWPAPSK",key);
+	}
+	else if(0 == strcmp(keytype,"wpawpa2_aes")){
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","WPAPSKWPA2PSK");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","AES");
+		nvram_set_(SER2NET_NVRAM,"ApCliWPAPSK",key);
+	}
+	else{
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","WPAPSKWPA2PSK");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","AES");
+		nvram_set_(SER2NET_NVRAM,"ApCliWPAPSK",key);
+	}
+	
+	nvram_set_(SER2NET_NVRAM,"RekeyMethod","TIME");
+
+}
+		
+		
+			TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		}while(0);
+		
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar AT_RstaWIFI2(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+if(0 == strcmp("2",nvram_get(SER2NET_NVRAM,"OperationMode"))){
+	
+	uchar ty[32];
+	
+	uchar *auth;
+	uchar *enc;
+	
+	enc=nvram_get(SER2NET_NVRAM,"staEncrypt");
+	auth=nvram_get(SER2NET_NVRAM,"staAuth");
+	
+	sprintf(ty,"");
+	
+	if(0 == strcmp(enc,"0")){
+		sprintf(ty,"none");
+	}
+	else if(0 == strcmp(enc,"1")){
+		if(0 == strcmp(auth,"0")){
+			sprintf(ty,"wep_open");
+		}
+		else if(0 == strcmp(auth,"1")){
+			sprintf(ty,"wep");
+		}
+	}
+	else if(0 == strcmp(auth,"4")){
+		if(0 == strcmp(enc,"4")){
+			sprintf(ty,"wpa_tkip");
+		}
+		else if(0 == strcmp(enc,"6")){
+			sprintf(ty,"wpa_aes");
+		}
+	}
+	else if(0 == strcmp(auth,"7")){
+		if(0 == strcmp(enc,"4")){
+			sprintf(ty,"wpa2_tkip");
+		}
+		else if(0 == strcmp(enc,"6")){
+			sprintf(ty,"wpa2_aes");
+		}
+	}
+	
+	sprintf(out,"%s,%s,%s",nvram_get(SER2NET_NVRAM,"staSSID"),ty,nvram_get(SER2NET_NVRAM,"staWpaPsk"));
+	
+	
+
+}
+else{
+	
+	uchar ty[32];
+	
+	uchar *auth;
+	uchar *enc;
+	
+	enc=nvram_get(SER2NET_NVRAM,"ApCliEncrypType");
+	auth=nvram_get(SER2NET_NVRAM,"ApCliAuthMode");
+	
+	sprintf(ty,"");
+	
+	if(0 == strcmp(enc,"NONE")){
+		sprintf(ty,"none");
+	}
+	else if(0 == strcmp(enc,"WEP")){
+		if(0 == strcmp(auth,"OPEN")){
+			sprintf(ty,"wep_open");
+		}
+		else if(0 == strcmp(auth,"SHARED")){
+			sprintf(ty,"wep");
+		}
+	}
+	else if(0 == strcmp(auth,"WPAPSK")){
+		if(0 == strcmp(enc,"TKIP")){
+			sprintf(ty,"wpa_tkip");
+		}
+		else if(0 == strcmp(enc,"AES")){
+			sprintf(ty,"wpa_aes");
+		}
+	}
+	else if(0 == strcmp(auth,"WPA2PSK")){
+		if(0 == strcmp(enc,"TKIP")){
+			sprintf(ty,"wpa2_tkip");
+		}
+		else if(0 == strcmp(enc,"AES")){
+			sprintf(ty,"wpa2_aes");
+		}
+	}
+	
+	sprintf(out,"%s,%s,%s",nvram_get(SER2NET_NVRAM,"ApCliSsid"),ty,nvram_get(SER2NET_NVRAM,"ApCliWPAPSK"));
+	
+	
+
+}
+		
+	}
+	else if('=' == *(comm+0)){
+		uchar buf[64];
+		
+		do{//wifi conf
+			uchar ssid[32];
+			uchar keytype[32];
+			uchar key[32];
+			uchar *p1,*p2;
+
+			uchar s_len;
+			
+			TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		
+			p1=(comm+1);
+			s_len=atoi(p1);
+
+			
+			p2=strchr(p1,',');
+			if(0 == p2){
+				TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				break;
+			}
+			p1=p2+1;
+			
+			if((s_len+2)>strlen(p1)){
+				TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				break;
+			}
+			
+			p2=p1+s_len;
+			snprintf(ssid,MIN_(p2-p1+1,sizeof(ssid)),p1);
+		
+			p1=p2+1;
+			p2=strchr(p1,',');
+			if(0 == p2){
+				TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				break;
+			}
+			snprintf(keytype,MIN_(p2-p1+1,sizeof(keytype)),p1);
+		
+			p1=p2+1;
+			snprintf(key,sizeof(key)-1,p1);
+		
+		
+		TIM_DEBUG("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n",__FUNCTION__,__LINE__,g_AT_wifi_conf,ssid,keytype,key);
+		
+if(0 == strcmp("2",nvram_get(SER2NET_NVRAM,"OperationMode"))){
+	nvram_set_(SER2NET_NVRAM,"staSSID",ssid);
+
+	if(0 == strcmp(keytype,"none")){
+		
+		nvram_set_(SER2NET_NVRAM,"staEncrypt","0");
+		nvram_set_(SER2NET_NVRAM,"staAuth","0");
+		nvram_set_(SER2NET_NVRAM,"staWpaPsk","0");
+		nvram_set_(SER2NET_NVRAM,"staKey1","0");
+	}
+	else if((0 == strcmp(keytype,"wep"))
+		||(0 == strcmp(keytype,"wep_shared"))){
+		
+		nvram_set_(SER2NET_NVRAM,"staAuth","1");
+		nvram_set_(SER2NET_NVRAM,"staEncrypt","0");
+		nvram_set_(SER2NET_NVRAM,"staWpaPsk","0");
+		nvram_set_(SER2NET_NVRAM,"staKey1Type","1");
+		nvram_set_(SER2NET_NVRAM,"staKey1",key);
+		
+//hex
+//		nvram_set_(SER2NET_NVRAM,"staKey1Type","0");
+//		nvram_set_(SER2NET_NVRAM,"staKey1",key);
+
+//128bit
+//staKey1Length=1
+
+		
+	}
+	else if((0 == strcmp(keytype,"wep_open"))){
+		
+		nvram_set_(SER2NET_NVRAM,"staAuth","0");
+		nvram_set_(SER2NET_NVRAM,"staEncrypt","1");
+		nvram_set_(SER2NET_NVRAM,"staWpaPsk","0");
+		nvram_set_(SER2NET_NVRAM,"staKey1Type","1");
+		nvram_set_(SER2NET_NVRAM,"staKey1",key);
+		
+//hex
+//		nvram_set_(SER2NET_NVRAM,"staKey1Type","0");
+//		nvram_set_(SER2NET_NVRAM,"staKey1",key);
+
+//128bit
+//staKey1Length=1
+
+		
+	}
+	else if(0 == strcmp(keytype,"wpa_tkip")){
+		nvram_set_(SER2NET_NVRAM,"staEncrypt","4");
+		nvram_set_(SER2NET_NVRAM,"staAuth","4");
+		nvram_set_(SER2NET_NVRAM,"staWpaPsk",key);
+	}
+	else if(0 == strcmp(keytype,"wpa_aes")){
+		nvram_set_(SER2NET_NVRAM,"staEncrypt","6");
+		nvram_set_(SER2NET_NVRAM,"staAuth","4");
+		nvram_set_(SER2NET_NVRAM,"staWpaPsk",key);
+	}
+	else if(0 == strcmp(keytype,"wpa2_tkip")){
+		nvram_set_(SER2NET_NVRAM,"staEncrypt","4");
+		nvram_set_(SER2NET_NVRAM,"staAuth","7");
+		nvram_set_(SER2NET_NVRAM,"staWpaPsk",key);
+	}
+	else if(0 == strcmp(keytype,"wpa2_aes")){
+		nvram_set_(SER2NET_NVRAM,"staEncrypt","6");
+		nvram_set_(SER2NET_NVRAM,"staAuth","7");
+		nvram_set_(SER2NET_NVRAM,"staWpaPsk",key);
+	}
+	else if(0 == strcmp(keytype,"auto")){
+		nvram_set_(SER2NET_NVRAM,"g_AT_wifi_autoed","0");
+	}
+	else{
+		nvram_set_(SER2NET_NVRAM,"staEncrypt","6");
+		nvram_set_(SER2NET_NVRAM,"staAuth","7");
+		nvram_set_(SER2NET_NVRAM,"staWpaPsk",key);
+	}
+	
+	nvram_set_(SER2NET_NVRAM,"RekeyMethod","TIME");
+
+}
+else{
+	nvram_set_(SER2NET_NVRAM,"ApCliSsid",ssid);
+
+	if(0 == strcmp(keytype,"none")){
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","OPEN");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","NONE");
+	}
+	else if(0 == strcmp(keytype,"wep")){
+		
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","SHARED");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","WEP");
+		nvram_set_(SER2NET_NVRAM,"ApCliDefaultKeyID","1");
+		nvram_set_(SER2NET_NVRAM,"ApCliKey1Type","1");
+		nvram_set_(SER2NET_NVRAM,"ApCliKey1Str",key);
+	}
+	else if(0 == strcmp(keytype,"wep_open")){
+		
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","OPEN");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","WEP");
+		nvram_set_(SER2NET_NVRAM,"ApCliDefaultKeyID","1");
+		nvram_set_(SER2NET_NVRAM,"ApCliKey1Type","1");
+		nvram_set_(SER2NET_NVRAM,"ApCliKey1Str",key);
+	}
+	else if(0 == strcmp(keytype,"wpa_tkip")){
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","WPAPSK");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","TKIP");
+		nvram_set_(SER2NET_NVRAM,"ApCliWPAPSK",key);
+	}
+	else if(0 == strcmp(keytype,"wpa_aes")){
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","ApCliWPAPSK");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","AES");
+		nvram_set_(SER2NET_NVRAM,"ApCliWPAPSK",key);
+	}
+	else if(0 == strcmp(keytype,"wpa2_tkip")){
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","WPA2PSK");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","TKIP");
+		nvram_set_(SER2NET_NVRAM,"ApCliWPAPSK",key);
+	}
+	else if(0 == strcmp(keytype,"wpa2_aes")){
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","WPA2PSK");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","AES");
+		nvram_set_(SER2NET_NVRAM,"ApCliWPAPSK",key);
+	}
+	else if(0 == strcmp(keytype,"wpawpa2_tkip")){
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","WPAPSKWPA2PSK");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","TKIP");
+		nvram_set_(SER2NET_NVRAM,"ApCliWPAPSK",key);
+	}
+	else if(0 == strcmp(keytype,"wpawpa2_aes")){
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","WPAPSKWPA2PSK");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","AES");
+		nvram_set_(SER2NET_NVRAM,"ApCliWPAPSK",key);
+	}
+	else{
+		nvram_set_(SER2NET_NVRAM,"ApCliAuthMode","WPAPSKWPA2PSK");nvram_set_(SER2NET_NVRAM,"ApCliEncrypType","AES");
+		nvram_set_(SER2NET_NVRAM,"ApCliWPAPSK",key);
+	}
+	
+	nvram_set_(SER2NET_NVRAM,"RekeyMethod","TIME");
+
+}
+		
+		
+			TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		}while(0);
+		
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_RstaBssid(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s",nvram_get(SER2NET_NVRAM,"ApCliBssid"));
+	}
+	else if('=' == *(comm+0)){
+		uchar buf[64];
+		
+		do{//wifi conf
+
+		
+if(0 == strcmp("2",nvram_get(SER2NET_NVRAM,"OperationMode"))){
+//	nvram_set_(SER2NET_NVRAM,"staBSSID",(comm+1));
+	nvram_set_(SER2NET_NVRAM,"ApCliBssid",(comm+1));
+
+}
+else{
+	nvram_set_(SER2NET_NVRAM,"ApCliBssid",(comm+1));
+
+
+
+}
+		
+		
+			TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		}while(0);
+		
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar AT_dhcpd(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_AT_dhcpd);
+	}
+	else if('=' == *(comm+0)){
+		g_AT_dhcpd=atoi(comm+1);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar AT_dhcpd_ip(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		if(g_AT_dhcpd_ip)
+			sprintf(out,"%s",g_AT_dhcpd_ip);
+	}
+	else if('=' == *(comm+0)){
+		g_AT_dhcpd_ip = at_set_value_(g_AT_dhcpd_ip,(comm+1));
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_dhcpd_dns(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		if(g_AT_dhcpd_dns)
+			sprintf(out,"%s",g_AT_dhcpd_dns);
+	}
+	else if('=' == *(comm+0)){
+		g_AT_dhcpd_dns = at_set_value_(g_AT_dhcpd_dns,(comm+1));
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar AT_dhcpd_time(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_AT_dhcpd_time);
+	}
+	else if('=' == *(comm+0)){
+		g_AT_dhcpd_time=atoi(comm+1);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+
+
+uchar AT_dhcpc(uchar* comm,uchar*out)
+
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_AT_dhcpc);
+	}
+	else if('=' == *(comm+0)){
+		if(0 == strcmp((comm+1),"1")){
+			g_AT_dhcpc=1;
+		}
+		else{
+			g_AT_dhcpc=0;
+		}
+
+		sprintf(out,"ok");
+
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_net_ip(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		if(g_AT_net_ip)
+			sprintf(out,"%s",g_AT_net_ip);
+	}
+	else if('=' == *(comm+0)){
+		g_AT_net_ip = at_set_value_(g_AT_net_ip,(comm+1));
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+
+uchar AT_net_dns(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+//		sprintf(out,"%s",g_AT_wifi_conf);
+		if(g_AT_net_dns)
+			sprintf(out,"%s",g_AT_net_dns);
+	}
+	else if('=' == *(comm+0)){
+
+		g_AT_net_dns = at_set_value_(g_AT_net_dns,(comm+1));
+
+
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar AT_default(uchar* comm,uchar*out)
+{
+	sprintf(out,"load default...\r\n");
+//	system("ralink_init clear 2860;ralink_init renew 2860 /etc_ro/Wireless/RT2860AP/RT2860_default_vlan;reboot");
+//	system("(sleep 2;ralink_init clear 2860;ralink_init renew 2860 /etc_ro/Wireless/RT2860AP/RT2860_default_vlan;reboot)&");
+	system("ralink_init clear 2860;ralink_init renew 2860 /etc_ro/Wireless/RT2860AP/RT2860_default_vlan;");
+
+	sprintf(out,"ok");
+}
+
+uchar AT_net_done(uchar* comm,uchar*out)
+{
+	if('1' != *(comm+1)){
+		sprintf(out,"");
+		return;
+	}
+
+	config_all_save_nvram_2();
+	goahead_initInternet();
+	power_save();
+	sprintf(out,"ok");
+}
+
+uchar AT_reboot(uchar* comm,uchar*out)
+{
+	sprintf(out,"rebooting...\r\n");
+	system("(sleep 1;reboot)&");
+}
+
+
+uchar AT_out_trans(uchar* comm,uchar*out)
+{
+	uint ret=0;
+
+TIM_DEBUG("DEBUG:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+	if('?' == *(comm+1)){
+		sprintf(out,"");
+	}
+	else if('=' == *(comm+0)){
+		uchar value=atoi(comm+1);
+		out_transparent_do(value);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+
+	
+}
+
+
+extern uchar socket_buf_empty_flush();
+
+uchar AT_serial_flush(uchar* comm,uchar*out)
+{
+	uint ret=0;
+
+TIM_DEBUG("DEBUG:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+	if('?' == *(comm+1)){
+		sprintf(out,"");
+	}
+	else if('=' == *(comm+0)){
+		uchar value=atoi(comm+1);
+		if(value){
+			serial_buf_empty_flush();
+			socket_buf_empty_flush();
+		}
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+
+	
+}
+
+uchar AT_pm(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_AT_pm);
+	}
+	else if('=' == *(comm+0)){
+		g_AT_pm=atoi(comm+1);
+		power_save();
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_settings(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%s",nvram_get(SER2NET_NVRAM,(comm+2)));
+	}
+	else if('=' == *(comm+0)){
+		
+do{//
+	uchar name[64];
+	uchar value[64];
+	uchar *p1,*p2;
+	
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+	p1=(comm+1);
+	
+	p2=strchr(p1,'=');
+	if(0 == p2){
+		TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		break;
+	}
+	snprintf(name,MIN_(p2-p1+1,sizeof(name)),p1);
+
+	p1=p2+1;
+	snprintf(value,sizeof(value)-1,p1);
+
+
+TIM_DEBUG("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n",__FUNCTION__,__LINE__,(comm+1),name,value);
+
+	nvram_bufset(SER2NET_NVRAM,name, value);
+
+}while(0);
+
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+	
+	
+uchar AT_RCommitAll(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"ok");
+	}
+	else if('=' == *(comm+0)){
+		TIM_DEBUG("DEBUG:%s(%d)\r\n",__FUNCTION__,__LINE__);
+//		nvram_commit(SER2NET_NVRAM);
+		config_all_save_nvram_3(0);
+		goahead_initInternet();
+		power_save();
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_settings_done(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"ok");
+	}
+	else if('=' == *(comm+0)){
+		TIM_DEBUG("DEBUG:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		nvram_commit(SER2NET_NVRAM);
+		goahead_initInternet();
+		power_save();
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+	
+uchar AT_settings_done2(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"ok");
+	}
+	else if('=' == *(comm+0)){
+		TIM_DEBUG("DEBUG:%s(%d)\r\n",__FUNCTION__,__LINE__);
+//		nvram_commit(SER2NET_NVRAM);
+		goahead_initInternet();
+		power_save();
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_CfgSave(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"ok");
+	}
+	else if('=' == *(comm+0)){
+		TIM_DEBUG("DEBUG:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		nvram_commit(SER2NET_NVRAM);
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+void gpio_mode_(ushort mode)
+{
+	int fd;
+//	ralink_gpio_reg_info info;
+	uchar i;
+
+	fd = open("/dev/gpio", O_RDONLY);
+	if (fd < 0) {
+		perror("/dev/gpio");
+		return;
+	}
+	for(i=0;i<=8;i++){
+
+	}
+//	if (ioctl(fd, RALINK_GPIO_SET_DIR_IN, RALINK_GPIO(0)) < 0)
+//		goto ioctl_err;
+
+	close(fd);
+
+	return;
+
+ioctl_err:
+	perror("ioctl");
+	close(fd);
+	return;
+}
+
+
+uchar gpio_read_(ushort data)
+{
+
+}
+
+void gpio_write_(ushort data)
+{
+
+}
+
+
+uchar AT_gpio_mode(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",g_AT_gpio_mode);
+	}
+	else if('=' == *(comm+0)){
+
+		g_AT_gpio_mode=atoi(comm+1);
+		gpio_mode_(g_AT_gpio_mode);
+
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_gpio_read(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",gpio_read_(atoi(comm+2)));
+	}
+	else if('=' == *(comm+0)){
+
+//		g_AT_gpio_mode=atoi(comm+1);
+
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_gpio_write(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+//		sprintf(out,"%d",g_AT_gpio_mode);
+	}
+	else if('=' == *(comm+0)){
+
+
+		
+		do{//
+			uchar name[64];
+			uchar value[64];
+			uchar *p1,*p2;
+			uchar i,j;
+			
+			TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		
+			p1=(comm+1);
+			
+			p2=strchr(p1,'=');
+			if(0 == p2){
+				TIM_ERROR("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				break;
+			}
+			snprintf(name,MIN_(p2-p1+1,sizeof(name)),p1);
+		
+			p1=p2+1;
+			snprintf(value,sizeof(value)-1,p1);
+		
+		
+		TIM_DEBUG("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n",__FUNCTION__,__LINE__,(comm+1),name,value);
+
+		i=atoi(name);
+		j=atoi(value);
+
+
+		if((i<0)||(i>8)||(j>1)||(j<0)){
+			break;
+		}
+
+		if(j)
+			g_AT_gpio_data |=(1<<i);
+		else
+			g_AT_gpio_data &=~(1<<i);
+			
+			
+		gpio_write_(g_AT_gpio_data);
+		
+		}while(0);
+
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+uchar AT_gpio_save(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+//		sprintf(out,"%d",g_AT_gpio_mode);
+	}
+	else if('=' == *(comm+0)){
+if('1' == *(comm+1)){
+	
+	uchar buf[32];
+	sprintf(buf,"%d",g_AT_gpio_mode);nvram_set_(SER2NET_NVRAM,"gpio_mode",buf);
+	sprintf(buf,"%d",g_AT_gpio_data);nvram_set_(SER2NET_NVRAM,"gpio_data",buf);
+	nvram_commit(SER2NET_NVRAM);
+}
+
+		sprintf(out,"ok");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+static uchar gpio2_status=0;
+	
+void gpio2_set(uchar value);
+uchar gpio2_get();
+
+uchar AT_gpio2(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"%d",gpio2_get());
+	}
+	else if('=' == *(comm+0)){
+		sprintf(out,"ok");
+if('1' == *(comm+1)){
+	gpio2_set(0);
+}
+else if('0' == *(comm+1)){
+	gpio2_set(1);
+}
+else {
+	sprintf(out,"value error");
+}
+
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+
+#define RT2860_NVRAM SER2NET_NVRAM
+
+/*
+ * arguments: ifname  - interface name
+ *            if_addr - a 16-byte buffer to store ip address
+ * description: fetch ip address, netmask associated to given interface name
+ */
+int getIfIp(char *ifname, char *if_addr)
+{
+	struct ifreq ifr;
+	int skfd = 0;
+
+	if((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		return -1;
+	}
+
+	strncpy(ifr.ifr_name, ifname, IF_NAMESIZE);
+	if (ioctl(skfd, SIOCGIFADDR, &ifr) < 0) {
+		close(skfd);
+		//error(E_L, E_LOG, T("getIfIp: ioctl SIOCGIFADDR error for %s"), ifname);
+		return -1;
+	}
+	strcpy(if_addr, inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
+
+	close(skfd);
+	return 0;
+}
+
+
+/*
+ * description: return WAN interface name
+ *              0 = bridge, 1 = gateway, 2 = wirelss isp
+ */
+char* getWanIfName(void)
+{
+	const char *mode = nvram_bufget(RT2860_NVRAM, "OperationMode");
+	static char *if_name = "br0";
+
+	if (NULL == mode)
+		return if_name;
+	if (!strncmp(mode, "0", 2))
+		if_name = "br0";
+	else if (!strncmp(mode, "1", 2)) {
+		if_name = "eth2.2";
+	}
+	else if (!strncmp(mode, "2", 2))
+		if_name = "ra0";
+	else if (!strncmp(mode, "3", 2))
+		if_name = "apcli0";
+	return if_name;
+}
+
+char* getWanIfNamePPP(void)
+{
+    const char *cm = nvram_bufget(RT2860_NVRAM, "wanConnectionMode");
+    if (!strncmp(cm, "PPPOE", 6) || !strncmp(cm, "L2TP", 5) || !strncmp(cm, "PPTP", 5) 
+#ifdef CONFIG_USER_3G
+		|| !strncmp(cm, "3G", 3)
+#endif
+	){
+        return "ppp0";
+	}
+
+    return getWanIfName();
+}
+
+
+
+/*
+ * arguments: ifname - interface name
+ *            if_net - a 16-byte buffer to store subnet mask
+ * description: fetch subnet mask associated to given interface name
+ *              0 = bridge, 1 = gateway, 2 = wirelss isp
+ */
+int getIfNetmask(char *ifname, char *if_net)
+{
+	struct ifreq ifr;
+	int skfd = 0;
+
+	if((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		return -1;
+	}
+
+	strncpy(ifr.ifr_name, ifname, IF_NAMESIZE);
+	if (ioctl(skfd, SIOCGIFNETMASK, &ifr) < 0) {
+		close(skfd);
+		//error(E_L, E_LOG, T("getIfNetmask: ioctl SIOCGIFNETMASK error for %s\n"), ifname);
+		return -1;
+	}
+	strcpy(if_net, inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
+	close(skfd);
+	return 0;
+}
+
+
+/*
+ * description: write WAN default gateway accordingly
+ */
+static int getWanGateway(char *if_net)
+{
+	char   buff[256];
+	int    nl = 0 ;
+	struct in_addr dest;
+	struct in_addr gw;
+	int    flgs, ref, use, metric;
+	unsigned long int d,g,m;
+	int    find_default_flag = 0;
+
+	char sgw[16];
+
+	FILE *fp = fopen("/proc/net/route", "r");
+
+	while (fgets(buff, sizeof(buff), fp) != NULL) {
+		if (nl) {
+			int ifl = 0;
+			while (buff[ifl]!=' ' && buff[ifl]!='\t' && buff[ifl]!='\0')
+				ifl++;
+			buff[ifl]=0;    /* interface */
+			if (sscanf(buff+ifl+1, "%lx%lx%X%d%d%d%lx",
+						&d, &g, &flgs, &ref, &use, &metric, &m)!=7) {
+				fclose(fp);
+				return sprintf(if_net, "");
+			}
+
+			if (flgs&RTF_UP) {
+				dest.s_addr = d;
+				gw.s_addr   = g;
+				strcpy(sgw, (gw.s_addr==0 ? "" : inet_ntoa(gw)));
+
+				if (dest.s_addr == 0) {
+					find_default_flag = 1;
+					break;
+				}
+			}
+		}
+		nl++;
+	}
+	fclose(fp);
+
+	if (find_default_flag == 1)
+		return sprintf(if_net, "%s", sgw);
+	else
+		return sprintf(if_net, "");
+}
+
+
+uchar AT_netip(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		char if_addr[16];
+		char if_mask[16];
+		char if_gw[16];
+
+		if (-1 == getIfIp(getWanIfNamePPP(), if_addr)) {
+			if_addr[0]=0;
+		}
+
+		if (-1 == getIfNetmask(getWanIfNamePPP(), if_mask)) {
+			if_mask[0]=0;
+		}
+
+		if (-1 == getWanGateway( if_gw)) {
+			if_gw[0]=0;
+		}
+		
+		sprintf(out,"%s,%s,%s",if_addr,if_mask,if_gw);
+	}
+	else if('=' == *(comm+0)){
+		sprintf(out,"error");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+uchar AT_exc(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"error");
+	}
+	else if('=' == *(comm+0)){
+		system((comm+1));
+		sprintf(out,"error");
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+
+#define MAX_SOCKET_NUMS 20
+#define MAX_SOCKET_SERVERC_NUMS 20
+
+typedef struct {
+	uchar cmd;
+#define CMD_IDLE 0	
+#define CMD_OPEN 1	
+#define CMD_CLOSE 2	
+
+	uchar mode;
+#define SMODE_NULL 0
+#define SMODE_TCPS 1
+#define SMODE_TCPC 2
+#define SMODE_UDPS 3
+#define SMODE_UDPC 4
+	
+	uchar state;
+#define SSTATE_IDLE 0
+#define SSTATE_CRESOVLEIP 1
+#define SSTATE_CCONNECT 2
+#define SSTATE_CCONNECTED 3
+#define SSTATE_SBIND 4
+#define SSTATE_SLISTEN 5
+
+	uchar ip[4];
+	ushort port;
+	ushort localport;
+	int fd;
+
+	uchar clifd[MAX_SOCKET_SERVERC_NUMS];
+	uchar clistate[MAX_SOCKET_SERVERC_NUMS];
+} sockets_t;
+
+static sockets_t g_socket[MAX_SOCKET_NUMS];
+
+#if 0
+void * ser2network_SOCKET_thread(void * arg)
+{
+	
+	int g_select_quit_fd=0;
+	int g_notify_socket_fd=0;
+	
+	struct timeval tv; 
+	fd_set select_fds;
+
+	int ret;
+
+
+
+	ERROR_TIMES_RESET();
+
+again1:	
+	if((mkfifo(SOCKET_QUIT_PIPE_DEV, 0777) < 0) && (errno != EEXIST))
+	{
+		TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	//			exit(1);
+	}
+
+	g_select_quit_fd = open(SOCKET_QUIT_PIPE_DEV, O_NONBLOCK | O_RDWR);
+	if(g_select_quit_fd<=0){
+		TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		ERROR_TIMES_AGAIN();
+		usleep(50*1000);
+		goto again1;
+	}
+
+	ERROR_TIMES_RESET();
+
+again2:	
+	if((mkfifo(SOCKET_NOTIFY_SOCKET_PIPE_DEV, 0777) < 0) && (errno != EEXIST))
+	{
+		TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	//			exit(1);
+	}
+
+	g_notify_socket_fd = open(SOCKET_NOTIFY_SOCKET_PIPE_DEV, O_NONBLOCK | O_RDWR);
+	if(g_notify_socket_fd<=0){
+		TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		ERROR_TIMES_AGAIN();
+		usleep(50*1000);
+		goto again2;
+	}
+	
+	while(1){
+		int maxfd = 0;
+		
+		FD_ZERO(&select_fds); 
+		
+		if(g_select_quit_fd>0){
+			FD_SET(g_select_quit_fd, &select_fds); 
+			maxfd=MAX_(maxfd,g_select_quit_fd);
+		}		
+		
+		if(g_notify_socket_fd>0){
+			FD_SET(g_notify_socket_fd, &select_fds); 
+			maxfd=MAX_(maxfd,g_notify_socket_fd);
+		}
+
+		
+TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+TIM_DEBUG("in:%s(%d) %d %d\r\n",__FUNCTION__,__LINE__,maxfd,select_fds);
+
+		tv.tv_sec = 1; 
+		tv.tv_usec = 0; 
+			
+		ret = select(maxfd+1,&select_fds,NULL,NULL,&tv);
+		if(ret>0){		
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+					
+			if(FD_ISSET(g_notify_socket_fd,&select_fds)){
+				TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				uint x;
+				TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				 x= read(g_notify_socket_fd, buf, sizeof(buf));
+							
+				uchar	   buf_serial[socket_buf_LEN];
+				uint buf_serial_len=0;
+				
+				TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				
+				socket_buf_tx_(buf_serial,&buf_serial_len);
+				statistics_serial_tx2 +=buf_serial_len;
+	
+				if(1 == g_network_protocol){
+					
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);		
+					for( i = 0;i < MAX_CONNECTS; i++){
+						if( ( sockfd= client[i] ) > 0){
+							fd_write(sockfd, buf_serial, buf_serial_len);	 //!> 读出来的写进去
+						}
+					}
+	
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+				
+				}
+				else{
+					if(udp_toAddr_p){
+						if(sendto(listenfd,buf_serial,buf_serial_len,0,(struct sockaddr*)udp_toAddr_p,sizeof(struct sockaddr))!=buf_serial_len){
+							TIM_WARN("WARN:%s(%d)\r\n",__FUNCTION__,__LINE__);
+							close(listenfd);
+							listened=0;
+							udp_toAddr_p=0;
+							led_set(0);
+						}
+				
+					}
+				}
+				TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	
+			}
+					
+			}
+}
+	
+}
+
+#endif
+	
+uchar AT_SOpen(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"ok");
+	}
+	else if('=' == *(comm+0)){
+		
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+	
+uchar AT_SClose(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"ok");
+	}
+	else if('=' == *(comm+0)){
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+	
+uchar AT_SList(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"ok");
+	}
+	else if('=' == *(comm+0)){
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+	
+uchar AT_SWrite(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"ok");
+	}
+	else if('=' == *(comm+0)){
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+	
+uchar AT_SRead(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	
+	if('?' == *(comm+1)){
+		sprintf(out,"ok");
+	}
+	else if('=' == *(comm+0)){
+	}
+	else{
+		sprintf(out,"error");
+	}
+
+	return ret;
+}
+
+	
+uchar AT_p2pflush(uchar* comm,uchar*out)
+{
+	uint ret=0;
+	nvram_close(SER2NET_NVRAM);
+	nvram_init(SER2NET_NVRAM);
+	return ret;
+}
+
+
+uchar AT_stalist(uchar* comm,uchar*out);
+
+
+uchar AT_RapStatus(uchar* comm,uchar*out);
+
+
+typedef struct {
+	uchar *command;
+	uchar (*handle)(uchar *comm,uchar*out);
+} AT_Handle_t;
+
+AT_Handle_t at_handler[]={
+	{"ver",AT_version},
+	{"remoteip",AT_remoteip},
+	{"remoteport",AT_remoteport},
+	{"CLport",AT_client_localeport},//client locale port.
+	{"remotepro",AT_remotepro},
+	{"timeout",AT_timeout},
+	
+	{"mode",AT_mode},
+	{"uart",AT_uart},
+	{"uartpacklen",AT_packlen},
+	{"uartpacktimeout",AT_packtimeout},
+	{"uartpackintertimeout",AT_packintertimeout},
+	{"save",AT_save},
+	{"reconn",AT_restart},
+
+
+	{"escap",AT_escap},
+	{"escap2",AT_escap2},
+	{"escap2_time",AT_escap2_time},
+
+	
+	{"RTS",AT_FLOW_CONTROL_RTS},
+	{"XON_XOFF",AT_XON_XOFF},
+		
+
+	
+	{"status",AT_status},
+
+	{"err",AT_error},
+
+
+//network
+
+	{"netmode",AT_netmode},
+	{"wifi_conf",AT_wifi_conf},
+	{"dhcpd",AT_dhcpd},
+	{"dhcpd_ip",AT_dhcpd_ip},
+	{"dhcpd_dns",AT_dhcpd_dns},
+	{"dhcpd_time",AT_dhcpd_time},
+	{"dhcpd",AT_dhcpd},
+	{"dhcpc",AT_dhcpc},
+	{"net_ip",AT_net_ip},
+	{"net_dns",AT_net_dns},
+	
+	{"default",AT_default},
+	
+	{"net_commit",AT_net_done},
+	{"reboot",AT_reboot},
+	
+	{"pm",AT_pm},
+	
+	{"out_trans",AT_out_trans},
+	{"serial_flush",AT_serial_flush},
+	{"settings",AT_settings},
+	{"settings_done",AT_settings_done},
+	{"gpio_mode",AT_gpio_mode},
+	{"gpio_read",AT_gpio_read},
+	{"gpio_write",AT_gpio_write},
+	{"gpio_save",AT_gpio_save},
+	{"gpio2",AT_gpio2},
+
+	
+	{"net_wanip",AT_netip},
+	{"excxxx",AT_exc},
+
+	
+	{"tcp_auto",AT_tcp_auto_connec},
+	{"tcp_client_check",AT_tcp_client_stat_check},
+	{"Channel",AT_Channel},
+	{"S2N_Stat",AT_s2n_stat},
+	{"S2N2_Stat",AT_s2n2_stat},
+		
+	{"Get_MAC",AT_Get_MAC},
+	
+	{"wifi_ConState",wifi_ConState},
+	{"wifi_Scan",wifi_Scan},
+		
+	{"StaList",AT_stalist},
+
+	{"suspend",wifi_suspend},
+		
+	{"password",password_},
+	{"username",username_},
+	
+	{"p2pkey",p2pkey},
+	
+#ifdef SER2NET_COM2
+	{"COM2",AT_COM2},
+#endif
+
+
+	{"DisName",AT_discovery_udp_name},
+
+	
+	{"ROperMode",AT_ROperMode},
+	{"RstaStatus",AT_RstaStatus},
+	{"RstaStatus2",AT_RstaStatus2},
+	{"RapStatus",AT_RapStatus},
+	{"RstaWIFI",AT_RstaWIFI},
+	{"RstaWIFIBssid",AT_RstaBssid},
+	{"RapWIFI",AT_RapWIFI},
+	{"RstaWIFI2",AT_RstaWIFI2},
+	{"RapWIFI2",AT_RapWIFI2},
+	{"Raphide",AT_Raphide},
+	{"Rapclient",AT_Rapclient},
+
+	
+	{"RstaChe",AT_RstaChe},
+
+
+	{"RstaRec",AT_RstaRec},
+	{"RstaRec2",AT_RstaRec2},
+	{"RLANIp",AT_RLANIp},
+	{"Rdhcpd_ip",AT_Rdhcpd_ip},
+	{"Rdhcpd",AT_Rdhcpd},
+
+	{"RBrDhcpc",AT_RBrDhcpc},
+	{"RBrCurIp",AT_RBrCurIp},
+
+	{"RNoti",AT_RNoti},
+	{"RNoti_",AT_RNoti_},
+
+	{"RCommit",AT_settings_done},
+	{"RCommitAll",AT_RCommitAll},
+
+
+
+	{"RRadioOff",AT_RadioOff},
+	{"RWiFiMode",AT_WiFiMode},
+
+
+	{"web_port",AT_web_port},
+
+
+	{"Flash1",AT_flash1},
+	{"Flash2",AT_flash2},
+	{"Flash3",AT_flash3},
+	{"FlashSave",AT_CfgSave},
+
+	{"SMaxConn",AT_SMaxConn},
+//	{"SRemoteIp",AT_SRemoteIp},
+//	{"SRemotePort",AT_SRemotePort},
+	{"SRemoteIpPort",AT_SRemoteIpPort},
+
+	{"TCPRealTime",AT_TCPRealTime},
+
+	
+
+
+	{"Cfg",AT_settings},
+	{"CfgSave",AT_CfgSave},
+	{"CfgCommit",AT_settings_done},
+//	{"CfgCommit",AT_net_done},
+	
+
+
+	{"SOpen",AT_SOpen},
+	{"SClose",AT_SClose},
+	{"SList",AT_SList},
+	{"SWrite",AT_SWrite},
+	{"SRead",AT_SRead},
+
+	{"p2pflush",AT_p2pflush},
+
+
+
+
+};
+
+
+uchar at(uchar *comm,uchar *out)
+{
+	if((NULL == comm)||(NULL == out))
+		return -1;
+
+	
+	TIM_DEBUG("in:%s(%d)(%s\r\n",__FUNCTION__,__LINE__,comm);
+	
+	out[0]=0;
+	if(('a' == gtolower(*comm))
+		&&('t' == gtolower(*(comm+1)))
+		&&('+' == (*(comm+2)))){
+
+{
+	if('\0' == (*(comm+3))){
+		sprintf(out,"+ok");
+		return 0;
+	}
+}
+
+{
+	int i,j;
+	uchar *p,*comm_;
+	
+	comm_=comm+3;
+	p=comm_;
+	for(j=0;j<128;j++,p++)if((0 == *p)||('=' == *p))break;
+	
+	for(i=0;i<(sizeof(at_handler)/sizeof(AT_Handle_t));i++){
+		if((j == strlen(at_handler[i].command))
+			&&(0 == memcmp(at_handler[i].command,comm_,j))){
+			at_handler[i].handle(p,out);
+			break;
+		}
+	}
+	
+	if(i == (sizeof(at_handler)/sizeof(AT_Handle_t))){
+#ifdef SER2NET_COM2	
+	if(COM2_ATs(comm,out))	
+#endif
+		AT_error(comm,out);
+	}
+	
+	return 0;
+}
+
+	}
+}
+
+static volatile uchar goahead_usr2=0;
+
+void ser2netSigHandler2(int signum)
+{
+	if (signum != SIGUSR2)
+		return;
+	
+	TIM_DEBUG("DEBUG:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+	goahead_usr2=1;
+
+}
+
+
+void goahead_initInternet(void)
+{
+{
+	int gopid;
+	FILE *fp = fopen("/var/run/goahead.pid", "r");
+	
+	if (NULL == fp) {
+		printf("ser2net: goahead is not running\n");
+		return;
+	}
+	fscanf(fp, "%d", &gopid);
+	if (gopid < 2) {
+		printf("ser2net: goahead pid(%d) <= 1\n", gopid);
+		return;
+	}
+	
+	//send SIGUSR1 signal to goAhead for WPSPBCStart();
+	printf("notify goahead to initInternet..\n");
+	kill(gopid, SIGUSR2);
+	fclose(fp);
+}
+
+{
+	uchar time=0;
+	goahead_usr2=0;
+
+	TIM_DEBUG("DEBUG:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+	while(1){
+		if(goahead_usr2){
+			break;
+		}
+		
+		time++;
+		if(time>30){
+			TIM_ERROR("ERROR:Not receive USR2%s(%d)\r\n",__FUNCTION__,__LINE__);
+			break;
+		}
+		
+		sleep(1);
+	}
+	TIM_DEBUG("DEBUG:%s(%d)\r\n",__FUNCTION__,__LINE__);
+}
+
+}
+
+#define PM_ETH0 0
+#define PM_ETH1 1
+#define PM_WIFI 2
+#define PM_CPU 3
+#define PM_RESERVE1 4
+#define PM_RESERVE2 5
+#define PM_RESERVE3 6
+#define PM_RESERVE4 7
+
+
+
+
+/*
+ * arguments: ifname  - interface name
+ *			  if_addr - a 16-byte buffer to store ip address
+ * description: fetch ip address, netmask associated to given interface name
+ */
+int getIfIp2(char *ifname, char *if_addr)
+{
+	struct ifreq ifr;
+	int skfd = 0;
+
+	if((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		return -1;
+	}
+
+	strncpy(ifr.ifr_name, ifname, IF_NAMESIZE);
+	if (ioctl(skfd, SIOCGIFFLAGS, &ifr) < 0) {
+		close(skfd);
+		//error(E_L, E_LOG, T("getIfIp: ioctl SIOCGIFADDR error for %s"), ifname);
+		return -1;
+	}
+
+	close(skfd);
+
+	if((ifr.ifr_flags)&IFF_UP){
+		return 0;
+	}
+	else{
+		return -1;
+	}
+	
+	return 0;
+}
+
+
+void wifi_power_save(uchar on)
+
+{
+#if 0
+	static uchar wifi_on=1;
+TIM_DEBUG("DEBUG:%s(%d)(%d)(%d)\r\n",__FUNCTION__,__LINE__,on,wifi_on);
+	if(on != wifi_on){
+		if(on){
+TIM_DEBUG("DEBUG:%s(%d)\r\n",__FUNCTION__,__LINE__);
+			system("config-powersave.sh wireless 0;");
+		}
+		else{
+TIM_DEBUG("DEBUG:%s(%d)\r\n",__FUNCTION__,__LINE__);
+			system("config-powersave.sh wireless 1;");
+		}
+		wifi_on=on;
+	}
+
+#else
+
+char if_addr[16];
+uchar wifi_on=1;
+
+if (-1 == getIfIp2("ra0", if_addr)) {
+	wifi_on=0;
+}
+else{
+	wifi_on=1;
+}
+
+TIM_DEBUG("DEBUG:%s(%d)(%d)(%d)\r\n",__FUNCTION__,__LINE__,on,wifi_on);
+	if(on != wifi_on){
+		if(on){
+TIM_DEBUG("DEBUG:%s(%d)\r\n",__FUNCTION__,__LINE__);
+			system("config-powersave.sh wireless 0;");
+		}
+		else{
+TIM_DEBUG("DEBUG:%s(%d)\r\n",__FUNCTION__,__LINE__);
+			system("config-powersave.sh wireless 1;");
+		}
+		wifi_on=on;
+	}
+
+{
+	if(!strcmp(nvram_bufget(RT2860_NVRAM, "HLK_APOnOff"), "0")){
+		system("brctl delif br0 ra0");
+		system("ifconfig ra0 down");
+	}
+}
+
+
+#endif
+	
+}
+
+
+void power_save(void)
+{		
+//	sleep(2);
+	system("(config-powersave.sh ethernet 1 0;config-powersave.sh ethernet 1 1;config-powersave.sh ethernet 1 2;)");
+
+{
+/*	uchar *p;
+	p=nvram_get(SER2NET_NVRAM,"AT_netmode");
+	if(p)
+		g_AT_netmode = atoi(p);
+	else
+		g_AT_netmode = 0;
+*/		
+	switch (g_AT_netmode){
+		case 1:
+			system("(config-powersave.sh ethernet 1 3;config-powersave.sh ethernet 0 4;config-powersave.sh usb 1)");
+			wifi_power_save(0);
+			system("ifconfig br0 down");
+			break;
+		case 2:
+			system("(config-powersave.sh ethernet 1 3;config-powersave.sh ethernet 1 4;config-powersave.sh usb 1)");
+			wifi_power_save(1);
+			system("ifconfig br0 down");
+			system("ifconfig eth2 down");
+			break;
+		case 3:
+//			system("brctl delif br0 eth2");
+			system("(config-powersave.sh ethernet 1 3;config-powersave.sh ethernet 1 4;config-powersave.sh usb 1)");
+			wifi_power_save(1);
+			break;
+		case 4:
+			system("(config-powersave.sh ethernet 1 3;config-powersave.sh ethernet 1 4;config-powersave.sh usb 0)");
+			wifi_power_save(0);
+			break;
+		default:
+			if (!strcmp(nvram_bufget(RT2860_NVRAM, "NoEth"), "1") )
+				system("(config-powersave.sh ethernet 1 3;config-powersave.sh ethernet 1 4;config-powersave.sh usb 1)");
+			else
+				system("(config-powersave.sh ethernet 0 3;config-powersave.sh ethernet 0 4;config-powersave.sh usb 0)");
+//			wifi_power_save(1);
+{
+    if (!strcmp(nvram_bufget(RT2860_NVRAM, "RadioOff"), "0") ){
+		wifi_power_save(1);
+	}	
+	else if (!strcmp(nvram_bufget(RT2860_NVRAM, "RadioOff"), "1") ){
+		wifi_power_save(0);
+	}	
+	else {
+		wifi_power_save(1);
+	}
+}
+			break;
+	}
+
+}
+
+//	system("(config-powersave.sh sdr 1;)");
+	
+//	system("config-powersave.sh cpu 1;");
+
+if(g_AT_pm&(1<<(8+PM_ETH0))){
+	if(g_AT_pm&(1<<(0+PM_ETH0))){
+		system("config-powersave.sh ethernet 1 4;");
+	}
+	else{
+		system("config-powersave.sh ethernet 0 4;");
+	}
+}
+if(g_AT_pm&(1<<(8+PM_ETH1))){
+	if(g_AT_pm&(1<<(0+PM_ETH1))){
+		system("config-powersave.sh ethernet 1 3;");
+	}
+	else{
+		system("config-powersave.sh ethernet 0 3;");
+	}
+}
+if(g_AT_pm&(1<<(8+PM_WIFI))){
+	if(g_AT_pm&(1<<(0+PM_WIFI))){
+		//system("config-powersave.sh wireless 1 ;");
+		wifi_power_save(0);
+	}
+	else{
+		//system("config-powersave.sh wireless 0 ;");
+		wifi_power_save(1);
+	}
+}
+if(g_AT_pm&(1<<(8+PM_CPU))){
+	if(g_AT_pm&(1<<(0+PM_CPU))){
+		system("config-powersave.sh sdr 1;");
+	}
+	else{
+		system("config-powersave.sh sdr 0;");
+	}
+}
+
+#if 1 //for debug.
+
+system(nvram_bufget(RT2860_NVRAM, "HLK_rcs0"));
+system(nvram_bufget(RT2860_NVRAM, "HLK_rcs1"));
+system(nvram_bufget(RT2860_NVRAM, "HLK_rcs2"));
+system(nvram_bufget(RT2860_NVRAM, "HLK_rcs3"));
+system(nvram_bufget(RT2860_NVRAM, "HLK_rcs4"));
+
+#endif
+
+}
+

@@ -1,0 +1,1395 @@
+#include <sys/types.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <syslog.h>
+#include <signal.h>               
+#include <netdb.h>
+#include <stdio.h>
+#include "ring.h"
+#include "defines.h"
+#include <sys/ioctl.h>
+
+#include <stdlib.h>
+#include <string.h>
+#include <stddef.h>
+#include <ctype.h>
+#include <limits.h>
+#include <stdarg.h>
+#include <assert.h>
+#include <stdint.h>
+#include <errno.h>
+#include "flash.h"
+
+/*MAC*/
+#include <net/if.h> 
+#include <linux/if_ether.h> 
+
+#include "pthread.h"
+
+
+#include <sys/socket.h>
+#include <sys/un.h>
+
+#include <unistd.h>
+
+
+#include <sys/msg.h>
+
+
+
+#include "ser2net.h"
+
+#include "md5_2.h"
+
+
+
+struct termios oldtio,options;
+
+
+
+#ifndef   uchar
+#define   uchar   unsigned char
+#endif
+#ifndef   uint
+#define   uint    unsigned int
+#endif
+#ifndef   ushort  
+#define   ushort  unsigned short
+#endif
+#ifndef   ulong
+#define   ulong   unsigned long
+#endif
+
+#define SER2NET_CFG_DOMAIN "/tmp/SER2NET_CFG_HLK"
+
+
+#define TIM_DEBUG printf
+
+#define TIM_TRACE() TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__)
+
+
+uchar config_at(uchar *in,uchar *out)
+{
+	static struct sockaddr_un srv_addr;
+	int connect_fd;
+	
+	int ret;
+	char snd_buf[1024];
+	int i;
+	
+//creat unix socket
+	connect_fd=socket(PF_UNIX,SOCK_STREAM,0);
+	if(connect_fd<0)
+	{
+		perror("cannot create communication socket");
+		return 1;
+	}	
+	srv_addr.sun_family=AF_UNIX;
+	strcpy(srv_addr.sun_path,SER2NET_CFG_DOMAIN);
+//connect server
+	ret=connect(connect_fd,(struct sockaddr*)&srv_addr,sizeof(srv_addr));
+	if(ret==-1)
+	{
+		perror("cannot connect to the server");
+		close(connect_fd);
+		return 1;
+	}
+	memset(snd_buf,0,1024);
+//	strcpy(snd_buf,"message from client");
+	strcpy(snd_buf,in);
+//send info server
+	for(i=0;i<4;i++)
+		write(connect_fd,snd_buf,sizeof(snd_buf));
+	
+//		read(connect_fd,snd_buf,sizeof(snd_buf));
+	close(connect_fd);
+	return 0;
+}
+
+
+
+void msg_stat(int msgid,struct msqid_ds msg_info)
+{
+int reval;
+sleep(1);//只是为了后面输出时间的方便
+reval=msgctl(msgid,IPC_STAT,&msg_info);
+if(reval==-1)
+{
+    printf("get msg info error\n");
+    return;
+}
+printf("\n");
+printf("current number of bytes on queue is %d\n",msg_info.msg_cbytes);
+printf("number of messages in queue is %d\n",msg_info.msg_qnum);
+printf("max number of bytes on queue is %d\n",msg_info.msg_qbytes);
+//每个消息队列的容量（字节数）都有限制MSGMNB，值的大小因系统而异。在创建新的消息队列时，//msg_qbytes的缺省值就是MSGMNB
+printf("pid of last msgsnd is %d\n",msg_info.msg_lspid);
+printf("pid of last msgrcv is %d\n",msg_info.msg_lrpid);
+printf("last msgsnd time is %s", ctime(&(msg_info.msg_stime)));
+printf("last msgrcv time is %s", ctime(&(msg_info.msg_rtime)));
+printf("last change time is %s", ctime(&(msg_info.msg_ctime)));
+printf("msg uid is %d\n",msg_info.msg_perm.uid);
+printf("msg gid is %d\n",msg_info.msg_perm.gid);
+
+}
+
+
+
+
+//"115200,8,n,1"
+int Serial_Config(int fd,uchar *para)
+{
+
+	speed_t speed;
+
+	int Baud=115200;
+	uchar Data_size=8;
+	uchar parity='n';
+	uchar stop_bit=1;
+
+if(fd<0){
+	TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);	
+}
+	
+{
+	uchar *p1,*p2,*p3;
+
+p1=para;
+
+if(p1){
+	Baud=atoi(p1);
+	p2 = strchr(p1,',');
+	if(p2){
+		p1=(p2+1);
+		Data_size=atoi(p1);
+		p2 = strchr(p1,',');
+		if(p2){
+			p1=(p2+1);
+			parity=*p1;
+			
+			p2 = strchr(p1,',');
+			if(p2){
+				p1=(p2+1);
+				stop_bit=atoi(p1);
+			}
+		}
+	}
+}
+
+
+}
+
+	TIM_DEBUG("In:%s(%d) (%d)(%d)(%c)(%d)\r\n",__FUNCTION__,__LINE__,
+		Baud,Data_size,parity,stop_bit);
+
+	tcgetattr(fd,&oldtio);
+    	tcgetattr(fd,&options);   
+
+	TIM_DEBUG("In:%s(%d)(%d)(%d)\r\n",__FUNCTION__,__LINE__,cfgetospeed(&options),cfgetospeed(&oldtio));
+
+   	fcntl(fd,F_SETFL,0);
+	fcntl(fd,F_SETFL,FNDELAY) ;
+   	
+	//options.c_cflag&=~PARENB;
+	//options.c_cflag&=~CSTOPB;
+	//options.c_cflag&=~CSIZE;
+	//options.c_cflag|=CS8;
+	//options.c_lflag=0;
+	//options.c_oflag&=(~OPOST);
+	//options.c_cflag|=(CLOCAL|CREAD);
+	//options.c_cc[VTIME]    = 20;  /* inter-character timer use 2s */
+	//options.c_cc[VMIN]     = 0;   /* blocking read until 1 chars received */
+
+       //Add by Ls 20031115   以原始流的方式打开串口,不做任何其他转化
+	//options.c_lflag  &= ~(ICANON | ECHO | ECHOE | ISIG);  /*Input*/
+	//options.c_oflag  &= ~OPOST;   /*Output*/
+
+	options.c_iflag = 0;
+	options.c_oflag = 0;
+	options.c_lflag = 0;
+	if(0==0)  
+		options.c_cc[VTIME]    = 20;
+	else  
+		options.c_cc[VTIME]    = 0;//20;  //inter-character timer use 2s 
+//	options.c_cc[VTIME]    = 20;
+	options.c_cc[VMIN]     = 0;   //blocking read until 1 chars received 
+	options.c_cflag = CS8 | CLOCAL | CREAD;
+
+
+	
+if(5 == Data_size){
+	options.c_cflag &= ~CSIZE;
+	options.c_cflag |= CS5;
+
+}
+else if(6 == Data_size){
+	options.c_cflag &= ~CSIZE;
+	options.c_cflag |= CS6;
+
+}
+else if(7 == Data_size){
+	options.c_cflag &= ~CSIZE;
+	options.c_cflag |= CS7;
+
+}
+else if(8 == Data_size){
+	
+	options.c_cflag &= ~CSIZE;
+	options.c_cflag |= CS8;
+
+}
+
+
+if('n' == parity){
+
+}
+else if('o' == parity){
+	
+	options.c_cflag |= PARENB;
+	options.c_cflag |= PARODD;
+	options.c_iflag |= (INPCK | ISTRIP);
+
+}
+else if('e' == parity){
+	options.c_cflag |= PARENB;
+	options.c_cflag &= ~PARODD;
+	options.c_iflag |= (INPCK | ISTRIP);
+}
+
+	
+if(0 == stop_bit){
+	options.c_cflag &= ~CSTOPB;
+}
+else if(1 == stop_bit){
+	options.c_cflag |= CSTOPB;
+}
+
+	
+	switch(Baud){
+		case 50:
+			speed=B50;
+			break;
+		case 75:
+			speed=B75;
+			break;
+		case 110:
+			speed=B110;
+			break;
+		case 134:
+			speed=B134;
+			break;
+		case 150:
+			speed=B150;
+			break;
+		case 200:
+			speed=B200;
+			break;
+		case 300:
+			speed=B300;
+			break;
+		case 600:
+			speed=B600;
+			break;
+		case 1200:
+			speed=B1200;
+			break;
+		case 1800:
+			speed=B1800;
+			break;
+		case 2400:
+			speed=B2400;
+			break;
+		case 4800:
+			speed=B4800;
+			break;
+		case 9600:
+			speed=B9600;
+			break;
+		case 19200:
+			speed=B19200;
+			break;
+		case 38400:
+			speed=B38400;
+			break;
+		case 57600:
+			speed=B57600;
+			break;
+		case 115200:
+			speed=B115200;
+			break;
+		case 230400:
+			speed=B230400;
+			break;
+		default:
+			speed=B115200;
+			TIM_WARN("WARN:%s(%d)\r\n",__FUNCTION__,__LINE__);
+			break;
+	}
+	
+	TIM_DEBUG("in:%s(%d) %d %d %d\r\n",__FUNCTION__,__LINE__,B115200,speed,B57600);
+
+	TIM_DEBUG(":%s(%d)(%d)(%d)\r\n",__FUNCTION__,__LINE__,cfgetospeed(&options),cfgetospeed(&oldtio));
+
+	
+//	cfsetospeed(&options,speed);
+//	cfsetispeed(&options,speed);
+	if(cfsetispeed(&options,speed)){
+		TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	}	
+	if(cfsetispeed(&options,speed)){
+		TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	}	
+
+	if(tcsetattr(fd,TCSAFLUSH,&options)){
+		TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	}	
+
+	tcflush(fd,TCIOFLUSH); 
+	return 0;
+}
+
+#define UART_DEV "/dev/ttyS1"
+
+void serial_test()
+{
+	int g_serial_fd=0;
+	
+		g_serial_fd=open(UART_DEV,O_RDWR|O_NOCTTY|O_NDELAY);
+
+	if(g_serial_fd<0){
+		TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		close(g_serial_fd);
+		return;
+	}
+
+	
+TIM_DEBUG("in:%s(%d) %d\r\n",__FUNCTION__,__LINE__,g_serial_fd);
+
+	Serial_Config(g_serial_fd,"110,8,n,1");
+	
+{
+	uchar buf[1024*8];
+	uint ret;
+	memset(buf,'1',sizeof(buf));
+	ret = write(g_serial_fd, buf, 1);	 //
+	
+TIM_DEBUG("in:%s(%d) %d %d\r\n",__FUNCTION__,__LINE__,sizeof(buf),ret);
+
+}
+	close(g_serial_fd);
+}
+
+void time_now()
+{
+	struct timeval tv;
+	gettimeofday (&tv , NULL);
+	printf("tv_sec; %d\n", tv.tv_sec) ;
+	printf("tv_usec; %d\n",tv.tv_usec);
+}
+
+
+#define KEY "H@L9K*(343jkdf98325&%*((&532234566xdetr09sdfkw3njxci83027%^&^^%7"
+
+//#define get_key(x) (KEY+((x%7)))
+#define get_key(x) (KEY)
+
+void Decrypt(uchar *data,uint len)
+{
+	uint i;
+	uchar *p;
+	
+	p=data+3;
+	for(i=0;i<((len-3)/8);i++){
+		Lib_DES(p,get_key(i),0);
+		p+=8;
+	}
+	
+	p=data;
+	for(i=0;i<(len/8);i++){
+		Lib_DES(p,get_key(i),0);
+		p+=8;
+	}
+}
+void Encrypt(uchar *data,uint len)
+{
+	uint i;
+	uchar *p=data;
+	for(i=0;i<(len/8);i++){
+		Lib_DES(p,get_key(i),1);
+		p+=8;
+	}
+	
+	p=data+3;
+	for(i=0;i<((len-3)/8);i++){
+		Lib_DES(p,get_key(i),1);
+		p+=8;
+	}
+}
+
+void printf_hex(uchar *p,uint len)
+{
+	uint i;
+	TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	for(i=0;i<len;i++){
+		TIM_DEBUG("%02x ",p[i]);
+	}
+	TIM_DEBUG("\r\n",__FUNCTION__,__LINE__);
+}
+
+void Encrypt_test()
+{
+ uchar xx[1024*500];
+
+	s_DesInit();
+
+
+ 
+	memset(xx,0,sizeof(xx));
+
+	printf_hex(xx,20);
+
+	
+	TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	time_now();
+	Encrypt(xx,sizeof(xx));
+	TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	printf_hex(xx,20);
+	TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	time_now();
+	Decrypt(xx,sizeof(xx));
+	time_now();
+	TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	printf_hex(xx,20);
+	
+}
+
+
+#define GPIO_DEV	"/dev/gpio"
+
+#define TIM_DEBUG printf
+
+#ifndef   uchar
+#define   uchar   unsigned char
+#endif
+#ifndef   uint
+#define   uint    unsigned int
+#endif
+#ifndef   ushort  
+#define   ushort  unsigned short
+#endif
+#ifndef   ulong
+#define   ulong   unsigned long
+#endif
+
+/*
+ * ioctl commands
+ */
+#define	RALINK_GPIO_SET_DIR		0x01
+#define RALINK_GPIO_SET_DIR_IN		0x11
+#define RALINK_GPIO_SET_DIR_OUT		0x12
+#define	RALINK_GPIO_READ		0x02
+#define	RALINK_GPIO_WRITE		0x03
+#define	RALINK_GPIO_SET			0x21
+#define	RALINK_GPIO_CLEAR		0x31
+#define	RALINK_GPIO_READ_BIT		0x04
+#define	RALINK_GPIO_WRITE_BIT		0x05
+#define	RALINK_GPIO_READ_BYTE		0x06
+#define	RALINK_GPIO_WRITE_BYTE		0x07
+#define	RALINK_GPIO_READ_INT		0x02 //same as read
+#define	RALINK_GPIO_WRITE_INT		0x03 //same as write
+#define	RALINK_GPIO_SET_INT		0x21 //same as set
+#define	RALINK_GPIO_CLEAR_INT		0x31 //same as clear
+#define RALINK_GPIO_ENABLE_INTP		0x08
+#define RALINK_GPIO_DISABLE_INTP	0x09
+#define RALINK_GPIO_REG_IRQ		0x0A
+#define RALINK_GPIO_LED_SET		0x41
+
+
+void gpio_init()
+{
+	int fd, req;
+
+system("reg s 0;reg w 60 00400095");
+
+
+	fd = open(GPIO_DEV, O_RDONLY);
+	if (fd < 0) {
+		perror(GPIO_DEV);
+		return -1;
+	}
+
+	if(ioctl(fd, RALINK_GPIO_SET_DIR_IN, 0xffffffff) < 0){
+//	if(ioctl(fd, RALINK_GPIO_SET_DIR_IN, (1<<1)) < 0){
+
+		perror("ioctl");
+		TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	}
+	if(ioctl(fd, RALINK_GPIO_SET_DIR_OUT, (1<<2)) < 0){
+		perror("ioctl");
+		TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	}
+		TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+	close(fd);
+}
+
+uchar gpio_read()
+{
+	
+	int fd, req;
+
+	int value=0;
+
+	gpio_init();
+
+	
+
+	fd = open(GPIO_DEV, O_RDONLY);
+	if (fd < 0) {
+		perror(GPIO_DEV);
+		return -1;
+	}
+	
+	if(ioctl(fd, RALINK_GPIO_READ, &value) < 0){
+		perror("ioctl");
+	}
+
+	close(fd);
+
+	TIM_DEBUG("in:%s(%d)(%08x)\r\n",__FUNCTION__,__LINE__,value);
+
+	if(value&(1<<1)){
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		return 0;
+	}
+	else{
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		return 1;
+	}
+}
+uchar gpio_set(uchar bit)
+{
+	
+	int fd, req;
+
+	uint value=0;
+
+	fd = open(GPIO_DEV, O_RDONLY);
+	if (fd < 0) {
+		perror(GPIO_DEV);
+		return -1;
+	}
+	
+	if(ioctl(fd, RALINK_GPIO_READ, &value) < 0){
+		perror("ioctl");
+	}
+	
+	value &=~(1<<2);
+	if(bit)
+		value |=(1<<2);
+
+	
+	if(ioctl(fd, RALINK_GPIO_WRITE, value) < 0){
+		perror("ioctl");
+	}
+
+	close(fd);
+
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+}
+
+
+void ser2net_check()
+{
+	FILE *fp;
+	
+	static uchar count=0;
+//	static int process_id=0;
+//	int process_id;
+//	process_id=get_ser2net_pid();
+	char buf1[128];
+	int len;
+	
+//	sprintf(buf1,"ps|grep \"ser2net\"|grep %d",process_id);
+	sprintf(buf1,"ps|grep \"ser2net\"|grep -v \"grep\"");
+	if((fp = popen(buf1, "r"))<=0) {
+		TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		return;
+	}
+	 len = fread(buf1, 1, sizeof(buf1)-1, fp);
+	 if(len>=sizeof(buf1)){
+		TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		pclose(fp);
+		return;
+	 }
+	pclose(fp);
+
+	buf1[len]=0;
+
+	if(strstr(buf1,"ser2net")){
+		count=0;
+	}
+	else{
+		if(count<50)
+			count++;
+	}
+
+	if(count>4){
+		system("(killall -q ser2net;killall -q -9 ser2net;sleep 1;ser2net)&");
+		count=0;
+	}
+}
+
+
+typedef struct {
+	uchar magic[4];
+	uint len;
+	uchar md5[16];
+} LOGO_HEAD_t;
+
+const uchar LOGO_Magic_Tim[]={0xaa,0x55,'H','L'};
+
+#define BLOCK_SIZE 0X10000
+
+#define LOGO_MAX_LEN 0x10000-sizeof(LOGO_HEAD_t)
+#define LOGO_FLASH_BASE 0X3f0000//54K   image size should not big then (0x400000 - 0x50000 -0x36000 = 3645440)
+
+#define HASH_SIZE 16
+
+static void get_md5(uchar *in,uint len,uchar *hash)
+{
+    MD5_CTX		md5ctx;
+
+    MD5Init2(&md5ctx);
+    MD5Update2(&md5ctx, in, (unsigned int)len);
+    MD5Final2(hash, &md5ctx);
+
+}
+
+void flash_write_4k(uchar *buf,uint addr_base);
+
+void flash_read_4k(uchar *buf,uint addr_base);
+
+
+void write_logo()
+{
+	LOGO_HEAD_t *phead;
+	uchar out[20];
+	uchar *buf;
+	uint len;
+	uint len2;
+	
+	uchar x=10;
+
+	uchar i;
+
+	init_info();
+	
+	FILE *fp;
+
+	if ((fp = fopen("/tmp/logo_w.jpg", "r"))) {
+		fseek(fp,0,SEEK_END);
+		len = ftell(fp);	//return NULL;
+		fseek(fp,0,SEEK_SET);
+		
+TIM_DEBUG("in:%s(%d)  %d\r\n",__FUNCTION__,__LINE__,len);
+
+		if (len > LOGO_MAX_LEN) {
+			TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+			fclose(fp);
+			return ;
+		}
+
+		len2=len;
+
+		len+=sizeof(LOGO_HEAD_t);
+		
+
+		len=(len/BLOCK_SIZE+((len%BLOCK_SIZE)?1:0))*BLOCK_SIZE;
+
+		buf = (unsigned char *)malloc(len);
+		if (buf == NULL) {
+			TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+			fclose(fp);
+			return ;
+		}
+
+		memset(buf,0,len);
+
+		fread(buf+sizeof(LOGO_HEAD_t),sizeof( char ),len,fp);
+		fclose(fp);
+TIM_DEBUG("in:%s(%d)  %d\r\n",__FUNCTION__,__LINE__,len);
+
+		phead=buf;
+TIM_DEBUG("in:%s(%d) \r\n",__FUNCTION__,__LINE__);
+
+		for(i=0;i<4;i++){
+			phead->magic[i]=LOGO_Magic_Tim[i];
+		}
+TIM_DEBUG("in:%s(%d) \r\n",__FUNCTION__,__LINE__);
+		phead->len=len2;
+TIM_DEBUG("in:%s(%d) \r\n",__FUNCTION__,__LINE__);
+		get_md5(buf+sizeof(LOGO_HEAD_t),len2,phead->md5);
+TIM_DEBUG("in:%s(%d) \r\n",__FUNCTION__,__LINE__);
+
+{
+	uint i;
+	for(i=0;i<20;i++){
+TIM_DEBUG("%2x ",buf[i]);
+		
+	}
+TIM_DEBUG("in:%s(%d) \r\n",__FUNCTION__,__LINE__);
+}
+
+
+		for(i=0;i<(len/BLOCK_SIZE);i++){
+			uchar j;
+			for(j=0;j<1;j++){
+				uchar tmp[BLOCK_SIZE];
+				uchar *pbuf=buf+BLOCK_SIZE*i;
+
+{
+	uint i;
+	for(i=0;i<20;i++){
+TIM_DEBUG("%2x ",pbuf[i]);
+		
+	}
+TIM_DEBUG("in:%s(%d) \r\n",__FUNCTION__,__LINE__);
+}				
+				flash_write_4k(pbuf,LOGO_FLASH_BASE+BLOCK_SIZE*i);
+				flash_read_4k(tmp,LOGO_FLASH_BASE+BLOCK_SIZE*i);
+				if(0 == memcmp(pbuf,tmp,BLOCK_SIZE)){
+					break;
+				}
+				else{
+TIM_ERROR("ERROR:%s(%d) (%08x)\r\n",__FUNCTION__,__LINE__,LOGO_FLASH_BASE+BLOCK_SIZE*i);
+			
+				}
+			}
+			if(j>=100){
+				TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+			}
+			
+		}
+
+		free(buf);
+
+	}
+	else{
+TIM_DEBUG("in:%s(%d) \r\n",__FUNCTION__,__LINE__);
+		
+	}
+TIM_DEBUG("in:%s(%d) \r\n",__FUNCTION__,__LINE__);
+}
+
+#define LOGO2_FLASH_BASE 0X3e0000//64K   image size should not big then (0x400000 - 0x50000 -0x36000 = 3645440)
+
+void write_logo2()
+{
+	LOGO_HEAD_t *phead;
+	uchar out[20];
+	uchar *buf;
+	uint len;
+	uint len2;
+	
+	uchar x=10;
+
+	uchar i;
+
+	init_info();
+	
+	FILE *fp;
+
+	if ((fp = fopen("/tmp/logo2_w.jpg", "r"))) {
+		fseek(fp,0,SEEK_END);
+		len = ftell(fp);	//return NULL;
+		fseek(fp,0,SEEK_SET);
+		
+TIM_DEBUG("in:%s(%d)  %d\r\n",__FUNCTION__,__LINE__,len);
+
+		if (len > LOGO_MAX_LEN) {
+			TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+			fclose(fp);
+			return ;
+		}
+
+		len2=len;
+
+		len+=sizeof(LOGO_HEAD_t);
+		
+
+		len=(len/BLOCK_SIZE+((len%BLOCK_SIZE)?1:0))*BLOCK_SIZE;
+
+		buf = (unsigned char *)malloc(len);
+		if (buf == NULL) {
+			TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+			fclose(fp);
+			return ;
+		}
+
+		memset(buf,0,len);
+
+		fread(buf+sizeof(LOGO_HEAD_t),sizeof( char ),len,fp);
+		fclose(fp);
+TIM_DEBUG("in:%s(%d)  %d\r\n",__FUNCTION__,__LINE__,len);
+
+		phead=buf;
+TIM_DEBUG("in:%s(%d) \r\n",__FUNCTION__,__LINE__);
+
+		for(i=0;i<4;i++){
+			phead->magic[i]=LOGO_Magic_Tim[i];
+		}
+TIM_DEBUG("in:%s(%d) \r\n",__FUNCTION__,__LINE__);
+		phead->len=len2;
+TIM_DEBUG("in:%s(%d) \r\n",__FUNCTION__,__LINE__);
+		get_md5(buf+sizeof(LOGO_HEAD_t),len2,phead->md5);
+TIM_DEBUG("in:%s(%d) \r\n",__FUNCTION__,__LINE__);
+
+{
+	uint i;
+	for(i=0;i<20;i++){
+TIM_DEBUG("%2x ",buf[i]);
+		
+	}
+TIM_DEBUG("in:%s(%d) \r\n",__FUNCTION__,__LINE__);
+}
+
+
+		for(i=0;i<(len/BLOCK_SIZE);i++){
+			uchar j;
+			for(j=0;j<1;j++){
+				uchar tmp[BLOCK_SIZE];
+				uchar *pbuf=buf+BLOCK_SIZE*i;
+
+{
+	uint i;
+	for(i=0;i<20;i++){
+TIM_DEBUG("%2x ",pbuf[i]);
+		
+	}
+TIM_DEBUG("in:%s(%d) \r\n",__FUNCTION__,__LINE__);
+}				
+				flash_write_4k(pbuf,LOGO2_FLASH_BASE+BLOCK_SIZE*i);
+				flash_read_4k(tmp,LOGO2_FLASH_BASE+BLOCK_SIZE*i);
+				if(0 == memcmp(pbuf,tmp,BLOCK_SIZE)){
+					break;
+				}
+				else{
+TIM_ERROR("ERROR:%s(%d) (%08x)\r\n",__FUNCTION__,__LINE__,LOGO2_FLASH_BASE+BLOCK_SIZE*i);
+			
+				}
+			}
+			if(j>=100){
+				TIM_ERROR("ERROR:%s(%d)\r\n",__FUNCTION__,__LINE__);
+			}
+			
+		}
+
+		free(buf);
+
+	}
+	else{
+TIM_DEBUG("in:%s(%d) \r\n",__FUNCTION__,__LINE__);
+		
+	}
+TIM_DEBUG("in:%s(%d) \r\n",__FUNCTION__,__LINE__);
+}
+
+
+int main(int argc, char *argv[])
+{
+	uchar mode;
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	
+{
+	uchar lan[6];
+	uchar wan[6];
+	
+	init_info();
+	
+	TIM_DEBUG("in:%s(%d) %d\r\n",__FUNCTION__,__LINE__,argc);
+	TIM_DEBUG("in:%s(%d) %s\r\n",__FUNCTION__,__LINE__,argv[0]);
+	TIM_DEBUG("in:%s(%d) %s\r\n",__FUNCTION__,__LINE__,argv[1]);
+
+    if (argc != 13) {
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	return -1;
+    }	
+	lan[0]=strtol(argv[1], NULL, 16);
+	lan[1]=strtol(argv[2], NULL, 16);
+	lan[2]=strtol(argv[3], NULL, 16);
+	lan[3]=strtol(argv[4], NULL, 16);
+	lan[4]=strtol(argv[5], NULL, 16);
+	lan[5]=strtol(argv[6], NULL, 16);
+	
+	wan[0]=strtol(argv[7], NULL, 16);
+	wan[1]=strtol(argv[8], NULL, 16);
+	wan[2]=strtol(argv[9], NULL, 16);
+	wan[3]=strtol(argv[10], NULL, 16);
+	wan[4]=strtol(argv[11], NULL, 16);
+	wan[5]=strtol(argv[12], NULL, 16);
+	
+	TIM_DEBUG("in:%s(%d) %d\r\n",__FUNCTION__,__LINE__,lan[0]);
+	TIM_DEBUG("in:%s(%d) %d\r\n",__FUNCTION__,__LINE__,lan[1]);
+	TIM_DEBUG("in:%s(%d) %d\r\n",__FUNCTION__,__LINE__,lan[2]);
+	TIM_DEBUG("in:%s(%d) %d\r\n",__FUNCTION__,__LINE__,lan[3]);
+	TIM_DEBUG("in:%s(%d) %d\r\n",__FUNCTION__,__LINE__,lan[4]);
+	TIM_DEBUG("in:%s(%d) %d\r\n",__FUNCTION__,__LINE__,lan[5]);
+	
+	TIM_DEBUG("in:%s(%d) %d\r\n",__FUNCTION__,__LINE__,wan[0]);
+	TIM_DEBUG("in:%s(%d) %d\r\n",__FUNCTION__,__LINE__,wan[1]);
+	TIM_DEBUG("in:%s(%d) %d\r\n",__FUNCTION__,__LINE__,wan[2]);
+	TIM_DEBUG("in:%s(%d) %d\r\n",__FUNCTION__,__LINE__,wan[3]);
+	TIM_DEBUG("in:%s(%d) %d\r\n",__FUNCTION__,__LINE__,wan[4]);
+	TIM_DEBUG("in:%s(%d) %d\r\n",__FUNCTION__,__LINE__,wan[5]);
+	
+{
+	uchar i;
+	uchar tmp[BLOCK_SIZE];
+	uchar tmp2[BLOCK_SIZE];
+	uchar *p=tmp;
+	
+	flash_read_4k(tmp,0x40000);
+
+#if 0
+SetMac()
+{
+	if [ "$1" == "lan" ]; then
+		./flash -w 0x40028 -o $2 1>/dev/null 2>&1
+		./flash -w 0x40029 -o $3 1>/dev/null 2>&1
+		./flash -w 0x4002a -o $4 1>/dev/null 2>&1
+		./flash -w 0x4002b -o $5 1>/dev/null 2>&1
+		./flash -w 0x4002c -o $6 1>/dev/null 2>&1
+		./flash -w 0x4002d -o $7 1>/dev/null 2>&1
+		
+		./flash -w 0x40004 -o $2 1>/dev/null 2>&1
+		./flash -w 0x40005 -o $3 1>/dev/null 2>&1
+		./flash -w 0x40006 -o $4 1>/dev/null 2>&1
+		./flash -w 0x40007 -o $5 1>/dev/null 2>&1
+		./flash -w 0x40008 -o $6 1>/dev/null 2>&1
+		./flash -w 0x40009 -o $7 1>/dev/null 2>&1
+	elif [ "$1" == "wan" ]; then
+		./flash -w 0x4002e -o $2 1>/dev/null 2>&1
+		./flash -w 0x4002f -o $3 1>/dev/null 2>&1
+		./flash -w 0x40030 -o $4 1>/dev/null 2>&1
+		./flash -w 0x40031 -o $5 1>/dev/null 2>&1
+		./flash -w 0x40032 -o $6 1>/dev/null 2>&1
+		./flash -w 0x40033 -o $7 1>/dev/null 2>&1
+	fi
+}
+
+#endif
+
+	p[0x28]=lan[0];
+	p[0x29]=lan[1];
+	p[0x2a]=lan[2];
+	p[0x2b]=lan[3];
+	p[0x2c]=lan[4];
+	p[0x2d]=lan[5];
+	
+	p[4]=lan[0];
+	p[5]=lan[1];
+	p[6]=lan[2];
+	p[7]=lan[3];
+	p[8]=lan[4];
+	p[9]=lan[5];
+	
+	p[0x2e]=wan[0];
+	p[0x2f]=wan[1];
+	p[0x30]=wan[2];
+	p[0x31]=wan[3];
+	p[0x32]=wan[4];
+	p[0x33]=wan[5];
+
+
+	for(i=0;i<10;i++){
+		flash_write_4k(tmp,0x40000);
+		flash_read_4k(tmp2,0x40000);
+		if(0 == memcmp(tmp2,tmp,BLOCK_SIZE)){
+			break;
+		}
+		else{
+	TIM_ERROR("ERROR:%s(%d) (%08x)\r\n",__FUNCTION__,__LINE__,0x40000);
+	TIM_ERROR("ERROR:%s(%d) (%08x)\r\n",__FUNCTION__,__LINE__,tmp[9]);
+	TIM_ERROR("ERROR:%s(%d) (%08x)\r\n",__FUNCTION__,__LINE__,tmp2[9]);
+
+		}
+	}
+	if(i>=10)	{
+		
+		TIM_ERROR("ERROR:%s(%d) \r\n",__FUNCTION__,__LINE__);
+		return -1;
+	}
+
+}
+	
+}
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	return 0;
+
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	write_logo();
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	write_logo2();
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	return;
+while(1);
+	TIM_TRACE();
+	
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+
+
+
+TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+
+
+#define NOTIFY_SERIAL_PIPE_DEV "/tmp/.ser2net_5"
+
+//void ser2network_notify_serial()
+
+{
+	int g_select_quit_fd;
+
+	g_select_quit_fd = open(NOTIFY_SERIAL_PIPE_DEV, O_RDWR|O_NONBLOCK);
+{
+	uchar buf[8];
+	read(g_select_quit_fd, buf, sizeof(buf));
+}
+	write(g_select_quit_fd, "xxxx", 1);
+	
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+	close(g_select_quit_fd);
+}
+
+TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+{
+	int g_select_quit_fd;
+
+	g_select_quit_fd = open(NOTIFY_SERIAL_PIPE_DEV, O_RDWR|O_NONBLOCK);
+{
+	uchar buf[8];
+	read(g_select_quit_fd, buf, sizeof(buf));
+}
+	write(g_select_quit_fd, "xxxx", 1);
+	
+	TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+	close(g_select_quit_fd);
+}
+
+
+TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+while(1);
+
+
+serial_test();
+TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+return 0;
+
+
+
+TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+{
+	
+	FILE *fp;
+	//int fp;
+	fp=0xffffffff;
+
+	int x;
+
+	x=-1;
+	
+	//fp=-1;
+	
+	//if((int)(fp=x) <= 0){
+	if((fp=x) <= 0){
+TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+	}
+	else if(fp == -1){
+TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+	}
+	else{
+TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		
+	}
+}
+return;
+
+
+while(1){
+TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	ser2net_check();
+TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+}
+
+while(1);
+
+
+TIM_DEBUG("in:%s(%d)(%d)\r\n",__FUNCTION__,__LINE__,gpio_read());
+
+gpio_set(0);
+TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+//sleep(3);
+
+gpio_set(1);
+TIM_DEBUG("in:%s(%d)\r\n",__FUNCTION__,__LINE__);
+//sleep(3);
+
+return;
+
+#if 0
+
+//	setenv("UPLOAD_FILENAME","/tmp/tim_uImage",1);
+
+
+//printf("uplaode (%s)\r\n",getenv("UPLOAD_FILENAME"));
+		{
+	uchar out[128];
+
+	config_command("at+out_trans=1",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+
+return ;
+			}
+
+#endif
+Encrypt_test();
+
+return;
+
+
+serial_test();
+
+sleep(10);
+
+system("(killall -q /tmp/test1.bin;sleep 1;killall -q -9 /tmp/test1.bin;sleep 1;/tmp/test1.bin)&");
+
+return;
+
+	mode = 3 ;
+
+	switch (mode){
+		case 1:
+	{
+		uchar out[128];
+	
+		
+		config_command("at+netmode=1",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+		config_command("at+dhcpc=1",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+		config_command("at+net_commit=1",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	}
+			break;
+		case 2:
+	{
+		uchar out[128];
+	
+		
+		config_command("at+netmode=2",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+		config_command("at+wifi_conf=HI-LINK,wpa2_aes,gongchao12g",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+		config_command("at+dhcpc=1",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+		config_command("at+net_commit=1",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	}
+			break;
+		case 3:
+	{
+		uchar out[128];
+	
+		
+		config_command("at+netmode=3",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+		config_command("at+wifi_conf=Hi-Link_,wpa2_aes,0000000000",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+		config_command("at+dhcpd=1",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+		config_command("at+net_commit=1",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	}
+			break;
+			
+		default:
+			break;
+	}
+	
+	
+	
+//	getchar();
+	
+
+return 0;
+
+
+
+{
+	uchar out[128];
+
+	
+	config_command("at+ver=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+remoteip=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+remoteport=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+remotepro=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+mode=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+uart=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+status=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+err=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+}
+
+
+getchar();
+
+	
+{
+	uchar out[128];
+
+	
+	config_command("at+ver=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+remoteip=192.168.11.133",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+remoteport=8080",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+remotepro=tcp",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+mode=server",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+uart=115200,8,n,1",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+status=6",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+err=7",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+save",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+}
+getchar();
+
+
+{
+	uchar out[128];
+
+	
+	config_command("at+ver=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+remoteip=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+remoteport=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+remotepro=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+mode=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+uart=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+status=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+err=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+}
+
+
+getchar();
+
+	
+{
+	uchar out[128];
+
+	
+	config_command("at+ver=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+remoteip=192.168.11.245",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+remoteport=8080",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+remotepro=tcp",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+mode=client",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+uart=57600,8,n,1",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+status=6",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+err=7",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+save",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+}
+getchar();
+
+
+{
+	uchar out[128];
+
+	
+	config_command("at+ver=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+remoteip=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+remoteport=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+remotepro=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+mode=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+uart=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+status=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+	config_command("at+err=?",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+}
+
+
+getchar();
+
+
+
+
+
+return 0;
+	
+//return 0;
+{
+		struct hostent *h;
+//		if((h=gethostbyname("www.baidu.com"))==NULL)
+		if((h=gethostbyname("8.8.8.8"))==NULL)
+		{
+			fprintf(stderr,"不能得到IP/n");
+			
+		}
+		else{
+			printf("HostName :%s\r\n",h->h_name);
+			printf("IP Address :%s\r\n",inet_ntoa(*((struct in_addr *)h->h_addr)));
+		}
+	}
+#if 0
+{
+int g_select_quit_fd=msgget(ftok("/tmp/quit",'a'),IPC_EXCL|00666);
+
+struct msqid_ds msg_ginfo,msg_sinfo;
+
+if(g_select_quit_fd==-1)
+{
+    printf("msg create error\n");
+    return;
+}
+
+msg_stat(g_select_quit_fd,msg_ginfo);
+
+msgsnd(g_select_quit_fd,"eddddd",1,IPC_NOWAIT);
+
+}
+
+#endif
+
+{
+	int g_select_quit_fd;
+
+	g_select_quit_fd = open("/tmp/ser2net_quit_pipe1", O_RDWR|O_NONBLOCK);
+	write(g_select_quit_fd, "xxxx", 5);
+
+	close(g_select_quit_fd);
+}
+{
+	int g_select_quit_fd;
+
+	g_select_quit_fd = open("/tmp/ser2net_quit_pipe2", O_RDWR|O_NONBLOCK);
+	write(g_select_quit_fd, "xxxx", 5);
+
+	close(g_select_quit_fd);
+}
+{
+	int g_select_quit_fd;
+
+	g_select_quit_fd = open("/tmp/ser2net_quit_pipe3", O_RDWR|O_NONBLOCK);
+	write(g_select_quit_fd, "xxxx", 5);
+
+	close(g_select_quit_fd);
+}
+
+
+{
+	uchar in_buf[128];
+	uchar out_buf[128];
+
+	sprintf(in_buf,"at+save=?");
+	
+	config_command(in_buf,out_buf);
+
+}
+	TIM_TRACE();
+
+	return 0;
+}
+

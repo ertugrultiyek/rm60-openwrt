@@ -1,0 +1,8 @@
+GD11 产品没有UART3串口
+
+需要使用UART3的TX作为 M.2的 复位脚
+所以dts 和  RM60的有区别 
+
+另外 因为没有  UART3 所以 hser2net 不能启动
+/etc/init.d/s2ncfg 不能启动hser2net程序
+

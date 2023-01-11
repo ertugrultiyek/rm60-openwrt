@@ -1,0 +1,1 @@
+iptables -I FORWARD -p tcp -m connlimit --connlimit-above 350 -j REJECT

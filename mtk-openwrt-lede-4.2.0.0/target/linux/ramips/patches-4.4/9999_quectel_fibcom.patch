@@ -1,0 +1,169 @@
+Index: linux-4.4.198/drivers/usb/serial/option.c
+===================================================================
+--- linux-4.4.198.orig/drivers/usb/serial/option.c	2022-03-30 19:25:04.212193999 +0800
++++ linux-4.4.198/drivers/usb/serial/option.c	2022-03-30 19:27:46.789442002 +0800
+@@ -249,6 +249,11 @@
+ #define QUECTEL_PRODUCT_EC25			0x0125
+ #define QUECTEL_PRODUCT_BG96			0x0296
+ #define QUECTEL_PRODUCT_EP06			0x0306
++#define QUECTEL_PRODUCT_EP06			0x0306
++#define QUECTEL_PRODUCT_EM12			0x0512
++#define QUECTEL_PRODUCT_RM500Q			0x0800
++#define QUECTEL_PRODUCT_RM500U			0x0900
++
+ 
+ #define CMOTECH_VENDOR_ID			0x16d8
+ #define CMOTECH_PRODUCT_6001			0x6001
+@@ -501,6 +506,13 @@
+ #define VIETTEL_VENDOR_ID			0x2262
+ #define VIETTEL_PRODUCT_VT1000			0x0002
+ 
++/* FIBOCOM */
++#define FIBOCOM_VENDOR_ID   0x2CB7
++#define FIBOCOM_PRODUCT_FG650_ECM 0x0A04
++#define FIBOCOM_PRODUCT_FG650_NCM 0x0A05
++#define FIBOCOM_PRODUCT_FG650_RNDIS 0x0A06
++
++
+ /* ZD Incorporated */
+ #define ZD_VENDOR_ID				0x0685
+ #define ZD_PRODUCT_7000				0x7000
+@@ -565,8 +577,22 @@
+ /* Interface is reserved */
+ #define RSVD(ifnum)	((BIT(ifnum) & 0xff) << 0)
+ 
++#define ZLP     BIT(17)
++
+ 
+ static const struct usb_device_id option_ids[] = {
++	{ USB_DEVICE(FIBOCOM_VENDOR_ID, 0x0104) },
++	{ USB_DEVICE(FIBOCOM_VENDOR_ID, 0x0105) },
++	{ USB_DEVICE(FIBOCOM_VENDOR_ID, 0x0107) },
++	{ USB_DEVICE(FIBOCOM_VENDOR_ID, 0x0108) },
++	{ USB_DEVICE(FIBOCOM_VENDOR_ID, 0x0109) },
++	{ USB_DEVICE(FIBOCOM_VENDOR_ID, 0x010A) }, 
++	{ USB_DEVICE(FIBOCOM_VENDOR_ID, 0x0110) },
++	{ USB_DEVICE(FIBOCOM_VENDOR_ID, 0x0111) },
++	{ USB_DEVICE(FIBOCOM_VENDOR_ID, FIBOCOM_PRODUCT_FG650_ECM), .driver_info = RSVD(0) | RSVD(1) | RSVD(5) },
++	{ USB_DEVICE(FIBOCOM_VENDOR_ID, FIBOCOM_PRODUCT_FG650_NCM), .driver_info = RSVD(0) | RSVD(1) | RSVD(6) },
++	{ USB_DEVICE(FIBOCOM_VENDOR_ID, FIBOCOM_PRODUCT_FG650_RNDIS), .driver_info = RSVD(0) | RSVD(1) | RSVD(6) },
++
+ 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
+ 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_RICOLA) },
+ 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_RICOLA_LIGHT) },
+@@ -1093,6 +1119,16 @@
+ 	  .driver_info = RSVD(4) },
+ 	{ USB_DEVICE(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_EP06),
+ 	  .driver_info = RSVD(4) | RSVD(5) },
++
++	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_EM12, 0xff, 0, 0) },
++	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM500Q, 0xff, 0xff, 0x30) },
++	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM500Q, 0xff, 0, 0) },
++	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM500Q, 0xff, 0xff, 0x10),
++	  .driver_info = ZLP },
++	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, 0x0901, 0xff, 0x00, 0x00) },	//Quectel EC200U-NC
++	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM500U, 0xff, 0x00, 0x00) },	//RG500U-CN
++
++
+ 	{ USB_DEVICE(CMOTECH_VENDOR_ID, CMOTECH_PRODUCT_6001) },
+ 	{ USB_DEVICE(CMOTECH_VENDOR_ID, CMOTECH_PRODUCT_CMU_300) },
+ 	{ USB_DEVICE(CMOTECH_VENDOR_ID, CMOTECH_PRODUCT_6003),
+@@ -2028,6 +2064,10 @@
+ 	.suspend           = usb_wwan_suspend,
+ 	.resume            = usb_wwan_resume,
+ #endif
++#if 1 //Added by Quectel
++	.reset_resume = usb_wwan_resume,
++#endif
++
+ };
+ 
+ static struct usb_serial_driver * const serial_drivers[] = {
+@@ -2044,6 +2084,36 @@
+ 	struct usb_device_descriptor *dev_desc = &serial->dev->descriptor;
+ 	unsigned long device_flags = id->driver_info;
+ 
++#if 1 //Added by Quectel
++	//Quectel UC20's interface 4 can be used as USB Network device
++	if (dev_desc->idVendor == cpu_to_le16(0x05C6) && dev_desc->idProduct == cpu_to_le16(0x9003)
++			&& serial->interface->cur_altsetting->desc.bInterfaceNumber >=4) {
++			printk("######## %s %d\n", __FUNCTION__, __LINE__);
++			return -ENODEV;
++	}
++	//Quectel EC20's interface 4 can be used as USB Network device
++	if (dev_desc->idVendor == cpu_to_le16(0x05C6) && dev_desc->idProduct == cpu_to_le16(0x9215)
++			&& serial->interface->cur_altsetting->desc.bInterfaceNumber >=4) {
++			printk("######## %s %d\n", __FUNCTION__, __LINE__);
++			return -ENODEV;
++	}
++	
++	if (serial->dev->descriptor.idVendor == cpu_to_le16(0x2C7C)) {
++		__u16 idProduct = le16_to_cpu(serial->dev->descriptor.idProduct);
++		//some interfaces can be used as USB Network device (ecm, rndis, mbim)
++		if (serial->interface->cur_altsetting->desc.bInterfaceClass != 0xFF) {
++			printk("######## %s %d\n", __FUNCTION__, __LINE__);
++			return -ENODEV;
++		}
++	
++		//Quectel EC25&EC21&EG91@EG95&EG06&EP06&EM06&BG96&AG35&EG12&EG18's interface 4 can be used as USB Network device(qmi, ecm, mbim)
++		if ((idProduct != 0x6026 && idProduct != 0x6126 && idProduct != 0x6002 && idProduct != 0x0901 && idProduct != 0x0900)
++			&& serial->interface->cur_altsetting->desc.bInterfaceNumber >= 4) {
++			printk("######## %s %d\n", __FUNCTION__, __LINE__);
++			return -ENODEV;
++		}
++	}
++#endif
+ 	/* Never bind to the CD-Rom emulation interface	*/
+ 	if (iface_desc->bInterfaceClass == 0x08)
+ 		return -ENODEV;
+@@ -2064,6 +2134,30 @@
+ 	    iface_desc->bInterfaceClass != USB_CLASS_CDC_DATA)
+ 		return -ENODEV;
+ 
++	if(serial->dev->descriptor.idVendor == FIBOCOM_VENDOR_ID &&
++		(((serial->dev->descriptor.idProduct == cpu_to_le16(0x0104) ||
++		serial->dev->descriptor.idProduct == cpu_to_le16(0x0105)) &&
++		serial->interface->cur_altsetting->desc.bInterfaceNumber >= 4)||
++		((serial->dev->descriptor.idProduct == cpu_to_le16(0x0109) ||
++		serial->dev->descriptor.idProduct == cpu_to_le16(0x010A)) &&
++		serial->interface->cur_altsetting->desc.bInterfaceNumber >= 2))) {
++
++		printk(KERN_INFO "Discovery the interface for FIBOCOM .");
++		return -ENODEV;
++	}
++
++	if(serial->dev->descriptor.idVendor == FIBOCOM_VENDOR_ID &&
++	(((serial->dev->descriptor.idProduct == cpu_to_le16(0x0104) ||
++	serial->dev->descriptor.idProduct == cpu_to_le16(0x0105)) &&
++	serial->interface->cur_altsetting->desc.bInterfaceNumber >= 4)||
++	((serial->dev->descriptor.idProduct == cpu_to_le16(0x0109) ||
++	serial->dev->descriptor.idProduct == cpu_to_le16(0x010A)) &&
++	serial->interface->cur_altsetting->desc.bInterfaceNumber >= 2))) {
++		printk(KERN_INFO "Discovery the interface for FIBOCOM .");
++		return -ENODEV;
++	}
++
++
+ 	/* Store the device flags so we can use them during attach. */
+ 	usb_set_serial_data(serial, (void *)device_flags);
+ 
+Index: linux-4.4.198/drivers/usb/serial/usb_wwan.c
+===================================================================
+--- linux-4.4.198.orig/drivers/usb/serial/usb_wwan.c	2022-03-30 19:25:04.212193999 +0800
++++ linux-4.4.198/drivers/usb/serial/usb_wwan.c	2022-03-30 19:25:04.212193999 +0800
+@@ -505,6 +505,15 @@
+ 			  usb_sndbulkpipe(serial->dev, endpoint) | dir,
+ 			  buf, len, callback, ctx);
+ 
++	#if 1 //Added by Quectel for zero packet
++	if (dir == USB_DIR_OUT) {
++		struct usb_device_descriptor *desc = &serial->dev->descriptor;
++		if (desc->idVendor == cpu_to_le16(0x2C7C))
++			urb->transfer_flags |= URB_ZERO_PACKET;
++	}
++	#endif
++
++
+ 	return urb;
+ }
+ 

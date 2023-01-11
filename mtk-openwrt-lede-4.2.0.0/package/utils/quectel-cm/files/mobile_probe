@@ -1,0 +1,31 @@
+!#/bin/sh
+
+mobile_probe()
+{
+        logger "vid:$1 pid:$1"
+        is_quectel=0
+        is_fibcom=0
+        module_name=""
+		mkdir /tmp/mobile
+		vid=$1
+		pid=$2
+
+        if [ $vid = "2c7c" ];then
+                if [ $pid = "0900" ];then
+                        echo "RM500U" > /tmp/mobile/module_name
+                elif [ $pid = "0800" ];then
+                        echo "RM500Q" > /tmp/mobile/module_name
+                else
+                        echo "UNKNOWN Dev" > /tmp/mobile/module_name
+                fi
+        elif [ $vid = "2cb7" ];then
+                if [ $pid = "0a05" ];then
+                        echo "FM650U-CN" > /tmp/mobile/module_name
+                fi
+        fi
+
+
+}
+
+mobile_probe $1 $2
+

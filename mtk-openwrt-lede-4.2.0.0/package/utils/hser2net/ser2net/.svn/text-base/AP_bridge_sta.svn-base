@@ -1,0 +1,23 @@
+#The following line must not be removed.
+Default
+WebInit=1
+OperationMode=0
+
+apClient=1
+ApCliEnable=1
+ApCliSsid=HILINK
+ApCliBssid=
+ApCliAuthMode=WPA2PSK
+ApCliEncrypType=AES
+ApCliWPAPSK=12345678
+ApCliDefaultKeyID=1
+ApCliKey1Type=1
+ApCliKey1Str=
+ApCliKey2Type=1
+ApCliKey2Str=
+ApCliKey3Type=1
+ApCliKey3Str=
+ApCliKey4Type=1
+ApCliKey4Str=
+
+

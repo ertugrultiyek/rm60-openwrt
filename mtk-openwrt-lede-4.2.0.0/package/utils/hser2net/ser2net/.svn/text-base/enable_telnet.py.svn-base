@@ -1,0 +1,306 @@
+# -*- encode:utf-8 -*-
+
+import os, Queue, re, time, sys
+import threading
+import winsound
+
+from hashlib import md5
+
+g_mutex = threading.Lock()
+
+def log_write(log):
+    g_mutex.acquire() 
+    f = open('updated_log.txt', "a")
+    f.write(log)
+    f.close()
+    winsound.PlaySound('c4_beep1.wav',winsound.SND_FILENAME|winsound.SND_NOWAIT)
+
+    g_mutex.release()
+
+def md5_file(name):
+    m = md5()
+    a_file = open(name, 'rb')    
+    m.update(a_file.read())
+    a_file.close()
+    return m.hexdigest()
+
+def execCmd(cmd):
+    r = os.popen(cmd)
+    text = r.read()
+    r.close()
+    return text
+
+def get_mac(ip):
+    import sys
+    #cmd = "nbtstat -A %s" % ip
+    cmd = "arp -a"
+    print cmd
+    result = execCmd(cmd)
+    print result
+    pat1 = "%s.*dynamic" % ip
+    MAC = re.search(pat1, result)
+    print("MAC=%s, IP=%s" %(MAC.group(), ip))
+    return MAC.group()
+
+
+
+queue = Queue.Queue( )
+queue2 = Queue.Queue( )
+
+class CThread(threading.Thread):
+    def __init__( self, ipList ):
+        threading.Thread.__init__( self )
+        self.__ipList = ipList                     
+        self.__nPackage = 1                     
+
+    def run( self ):
+        if sys.platform and sys.platform[:3]=='win':
+            cmd = 'ping -n %d ' % (self.__nPackage)
+        else:
+            cmd = 'ping -c %d ' % (self.__nPackage)
+        for ip in self.__ipList:
+            print 'pinging %s' % cmd+ip
+            sRst = os.popen( cmd+ip ).read( )
+  #          if re.search( 'equest', sRst ) and (not re.match( 'ttl', sRst ) or    not re.match( 'TTL', sRst )):
+  #               queue.put( ip )
+   #         else:
+    #             queue2.put( ip )
+    #             print sRst
+            if(re.search( 'Reply', sRst )):
+                queue2.put( ip )
+            elif(not re.search( 'Request ', sRst )):
+                print ip,"no return:|",sRst,"|"
+            else:
+                queue.put( ip )
+               # print ip,"return:|",sRst,"|"
+
+class CPing:
+    def __init__( self, ipList ):
+        self.__ipList = ipList                  
+        self.__nThread = 50                     
+
+    def Ping( self ):
+        nBegin = time.time( )
+        listThread = []
+        n = len(self.__ipList)/self.__nThread+1
+        nSum = 0
+        for i in range(self.__nThread):
+            if i*n+n < len(self.__ipList):
+                nSum += 1
+                trd = CThread( self.__ipList[i*n:i*n+n] )
+                print 'athread%d' % i, self.__ipList[i*n:i*n+n]
+            else:
+                if not self.__ipList[i*n:]:
+                    break
+                nSum += 1
+                trd = CThread( self.__ipList[i*n:] )
+                print 'bthread%d' % i, self.__ipList[i*n:]
+            listThread.append( trd )
+            trd.start( )
+         #   time.sleep(0.3);
+        for i in range(nSum):
+            listThread[i].join( )
+        nEnd = time.time( )
+        print 'used %ds'.decode('utf-8') % (nEnd-nBegin)
+        
+
+import telnetlib
+
+def telnet_do(host):
+    tn = telnetlib.Telnet(host)
+#    tn.set_debuglevel(2)
+
+    tn.read_until("login: ")
+    tn.write("admin\n")
+    tn.read_until("Password: ")
+    tn.write("admin\n")
+
+    tn.write("echo 3422 >/dev/console\n")
+
+    cmd = 'cd /tmp/;killall wifi_unload.sh;tftp -g -r wifi_unload.sh 192.168.11.245;chmod 755 wifi_unload.sh;./wifi_unload.sh ;'
+    cmd = cmd +'tftp -g -r tim_uImage 192.168.11.245;'
+    cmd = cmd +'/bin/mtd_write -o 0 -l '+(' %d' % os.path.getsize('tim_uImage'))+' write /tmp/tim_uImage Kernel_RootFS;'
+
+    cmd = cmd +'\n'
+    print cmd
+    tn.write(cmd)
+    
+    tn.read_until("Writing from /tmp/tim_uImage to Kernel_RootFS")
+    tn.read_until("# ")
+
+    cmd = 'tftp -g -r RT2860_default_vlan 192.168.11.245;ralink_init clear 2860;ralink_init renew 2860 /tmp/RT2860_default_vlan;\n'
+    print cmd
+    tn.write(cmd)
+
+    tn.read_until("# ")
+    
+    cmd = 'ping -c 10000 192.168.11.245 &\n'
+    
+    print cmd
+    tn.write(cmd)
+
+#    time.sleep(40);
+    
+    tn.write("exit\n")
+    print tn.read_all()
+
+#    print 'telnet_do done!!!'
+
+import httplib, urllib
+
+
+
+def start_telnetd(ip):
+    params = urllib.urlencode({'command': '(killall telnetd;sleep 1;telnetd )&', 'SystemCommandSubmit': 'Apply'})
+    headers = {"Content-type": "application/x-www-form-urlencoded",
+           "Accept": "text/plain",
+            "Authorization":"Basic YWRtaW46YWRtaW4="
+               }
+    conn = httplib.HTTPConnection(ip)
+    conn.request("POST", "/goform/hlk34fge3360llf94wwq24", params, headers)
+ #   conn.request("POST", "/goform/SystemCommand", params, headers)
+    response = conn.getresponse()
+    print response.status, response.reason
+
+    data = response.read()
+    print data
+
+    conn.close()
+
+
+
+def web_update(ip):
+    cmd = '(cd /tmp/;killall wifi_unload.sh;tftp -g -r wifi_unload.sh 192.168.11.245;chmod 755 wifi_unload.sh;./wifi_unload.sh ;'
+    cmd = cmd +'tftp -g -r uboot.img 192.168.11.245;'
+    cmd = cmd +'/bin/mtd_write -o 0 -l '+(' %d' % os.path.getsize('uboot.img'))+' write /tmp/uboot.img Bootloader;'
+    cmd = cmd +'rm -fr uboot.img ;'
+    cmd = cmd +'tftp -g -r tim_uImage 192.168.11.245;'
+    cmd = cmd +'/bin/mtd_write -o 0 -l '+(' %d' % os.path.getsize('tim_uImage'))+' write /tmp/tim_uImage Kernel_RootFS;'
+    cmd = cmd +'tftp -g -r RT2860_default_vlan 192.168.11.245;ralink_init clear 2860;ralink_init renew 2860 /tmp/RT2860_default_vlan;'
+#    cmd = cmd + 'ifconfig eth2.2 down;'
+    cmd = cmd + ')'
+    print 'web_update cmd:',cmd
+    params = urllib.urlencode({'command': cmd, 'SystemCommandSubmit': 'Apply'})
+    headers = {"Content-type": "application/x-www-form-urlencoded",
+           "Accept": "text/plain",
+            "Authorization":"Basic YWRtaW46YWRtaW4="
+               }
+    conn = httplib.HTTPConnection(ip)
+    conn.request("POST", "/goform/hlk34fge3360llf94wwq24", params, headers)
+    response = conn.getresponse()
+    print response.status, response.reason
+
+    data = response.read()
+    print data
+    
+    ret = re.search('This document has moved to a new', data)
+    if ret is not None:
+        log_='updated (%s) (%s:%s): (%s)\n\r\n' % (get_mac(ip),'tim_uImage',md5_file('tim_uImage'),time.ctime())
+        log_write(log_)
+        print log_
+
+    conn.close()
+
+def web_update_shutdown_eth22(ip):
+    cmd = '(ifconfig eth2.1 down;ifconfig eth2 down;ifconfig eth2.2 down;)'
+    print 'web_update cmd:',cmd
+    params = urllib.urlencode({'command': cmd, 'SystemCommandSubmit': 'Apply'})
+    headers = {"Content-type": "application/x-www-form-urlencoded",
+           "Accept": "text/plain",
+            "Authorization":"Basic YWRtaW46YWRtaW4="
+               }
+    conn = httplib.HTTPConnection(ip)
+    conn.request("POST", "/goform/SystemCommand", params, headers)
+#    response = conn.getresponse()
+#    print response.status, response.reason
+
+#    data = response.read()
+#    print data
+
+    conn.close()
+
+def update_ip(ip):
+    print ip,' updating....'
+    try:
+   #    print 'xx'
+        start_telnetd(ip)
+        time.sleep(0.5);
+   #     telnet_do(ip)
+    #    web_update(ip)
+   #     web_update_shutdown_eth22(ip)
+        print '    start_telnetd done!!!'
+    except IOError, e:   
+        #print "error: ",e
+        print "    start_telnetd failed: ",e
+        
+
+def main2( ):
+    ipList = []
+ #   for i in xrange( 200, 211 ):
+    for i in ( 103, 117, 100 ):
+        ipList.append( '192.168.11.'+str(i) )
+
+    ping = CPing( ipList )
+    ping.Ping( )
+ #   print 'not connected:'
+ #   while not queue.empty( ):
+  #      print queue.get( )
+    print 'connected:'
+    thread_pool = []
+    nSum = 0
+    while not queue2.empty( ):
+        ip=queue2.get( )
+        #update_ip(ip)
+       # print ip,' cccc....'
+        th = threading.Thread(target=update_ip,args=(ip,)) ;
+        thread_pool.append(th)
+        nSum += 1
+        th.start( )
+        time.sleep(1);
+
+    
+    for i in range(nSum):
+        thread_pool[i].join( )
+        
+    winsound.PlaySound('finish.wav',winsound.SND_FILENAME|winsound.SND_NOWAIT)
+    execCmd('arp -d')
+
+
+def show_menu():
+    print "---------------------------------------------------"
+    print "enter to start."
+    print "q. exit."
+
+def getchar(xx):
+    '''
+    Equivale al comando getchar() di C
+    '''
+
+    print xx
+    import msvcrt
+#    ch = msvcrt.getch();
+#    print ch
+    ch = raw_input(xx);
+    return(ch)
+
+def main():
+    
+    option = '';
+    while option != 'q':
+        show_menu();
+        option = getchar('Input option:');
+        if option == '0':
+            print 'option 0'
+            print 'COM PORT =',COM_PORT
+        elif option == '1':
+            print 'option 1'
+     #   start_telnetd('192.168.11.100')
+     #   start_telnetd('192.168.200.1')
+     #   start_telnetd('192.168.16.254')
+        start_telnetd('192.168.0.10')
+    #    start_telnetd('192.168.11.136')
+   #     start_telnetd('192.168.11.146')
+
+if __name__ == '__main__':
+    main( )
+

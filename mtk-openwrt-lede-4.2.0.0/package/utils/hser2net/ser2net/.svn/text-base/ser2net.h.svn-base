@@ -1,0 +1,92 @@
+
+#ifndef   uchar
+#define   uchar   unsigned char
+#endif
+#ifndef   uint
+#define   uint    unsigned int
+#endif
+#ifndef   ushort  
+#define   ushort  unsigned short
+#endif
+#ifndef   ulong
+#define   ulong   unsigned long
+#endif
+
+
+#define SERVER_QUIT_PIPE_DEV "/tmp/.ser2net_1"
+#define CLIENT_QUIT_PIPE_DEV "/tmp/.ser2net_2"
+#define AT_QUIT_PIPE_DEV "/tmp/.ser2net_quit_3"
+
+#define SERIAL_QUIT_PIPE_DEV "/tmp/.ser2net_4"
+#define UDP_QUIT_PIPE_DEV "/tmp/.ser2net_7"
+
+
+
+
+
+#define NOTIFY_SERIAL_PIPE_DEV "/tmp/.ser2net_5"
+#define NOTIFY_SOCKET_PIPE_DEV "/tmp/.ser2net_6"
+
+
+
+#define NOTIFY_PIPE_DEV "/tmp/.ser2net_8"
+
+
+
+
+
+	
+#define SOCKET_QUIT_PIPE_DEV "/tmp/.ser2net_S0"
+#define SOCKET_NOTIFY_SOCKET_PIPE_DEV "/tmp/.ser2net_S1"
+
+
+#define MAX_(A,B) ((A>B)?A:B)		
+#define MIN_(A,B) ((A<B)?A:B)		
+
+
+
+
+#define AT_VERSION 198
+
+#define SER2NET_NVRAM    0
+
+
+#if 0
+#define TIM_DEBUG printf
+#else
+#define TIM_DEBUG(a,...)
+#endif
+
+#define TIM_WARN printf
+#define TIM_ERROR printf
+
+
+
+
+uchar config_command(uchar *in,uchar *out);
+
+
+uchar at(uchar *comm,uchar *out);
+
+
+
+//#define TIM_SET
+
+
+#define COMM_BUF_LEN (1024*4)
+
+#define MAX_CONNECTS (100)
+#define socket_buf_LEN (1024*4)
+#define SERIAL_BUF_LEN (1024*4)
+
+
+#define SER2NET_COM2
+
+typedef struct {
+	uchar *nvram_key;
+	uchar type;
+	void *p;
+	void *default_;
+} nvram_t;
+
+

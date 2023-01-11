@@ -1,0 +1,94 @@
+CC = /opt/buildroot-gcc342/bin/mipsel-linux-uclibc-gcc
+#CC = gcc
+
+XX = g++
+CFLAGS = -Wall -O2  
+
+ROOTDIR =../../
+LINUXDIR =linux-2.6.21.x
+CFLAGS	+= -I$(ROOTDIR)/lib/libnvram
+#CFLAGS	+=  -I$(ROOTDIR)/$(LINUXDIR)/drivers/char -I$(ROOTDIR)/$(LINUXDIR)/include
+
+
+#CFLAGS	+= -DTIM_SET
+
+
+#CFLAGS	+= -DYU_AN_ZHAO_MING
+
+
+LDFLAGS	= -L$(ROOTDIR)/lib/libnvram -s
+#LDLIBS	= -lc  -lnvram   ###!!!!! -lc may cause app quit!!!!??????
+LDLIBS	=  -lnvram
+
+TARGET = ./ser2net
+
+%.o: %.c *.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+%.o:%.cpp *.h
+	$(XX) $(CFLAGS) -c $< -o $@
+
+SOURCES = $(wildcard *.c *.cpp)
+#OBJS = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(SOURCES)))
+OBJS = client.o at_command.o config_command.o key.o des.o flash_mtd.o sha.o udp_server.o wireless.o client_c2.o others1.o
+
+$(TARGET) : $(OBJS) ser2net.h
+	$(CC) $(OBJS) $(LDFLAGS) $(LDLIBS) -lpthread  -o $(TARGET)
+
+clean:
+	rm -rf *.o $(TARGET)
+
+
+test1:test1.c
+	$(CC) $(CFLAGS) test1.c des.c config_command.c -o test1.bin
+
+.PHONY : hlk_image_tools 
+hlk_image_tools:hlk_image_tools.c
+	gcc hlk_image_tools.c des.c -o hlk_image_tools
+	
+.PHONY : hlk_flash_rf 
+hlk_flash_rf:hlk_flash_rf.c
+	$(CC)  $(CFLAGS) hlk_flash_rf.c  -o hlk_flash_rf
+
+romfs:
+	$(ROMFSINST) ser2net /bin/
+	$(ROMFSINST) readme /bin/
+	$(ROMFSINST) RT2860_uart_eth /etc_ro/Wireless/RT2860AP/
+	$(ROMFSINST) RT2860_uart_3g /etc_ro/Wireless/RT2860AP/
+	$(ROMFSINST) RT2860_uart_ap /etc_ro/Wireless/RT2860AP/
+	$(ROMFSINST) RT2860_uart_client /etc_ro/Wireless/RT2860AP/
+	$(ROMFSINST) RT2860_uart_default /etc_ro/Wireless/RT2860AP/
+	$(ROMFSINST) AP_apclient_sta /etc_ro/Wireless/RT2860AP/
+	$(ROMFSINST) AP_bridge_sta /etc_ro/Wireless/RT2860AP/
+	$(ROMFSINST) AP_sta /etc_ro/Wireless/RT2860AP/
+	
+tim:
+	$(CC) $(CFLAGS) flash_/flash_mtd.c -o flash_tim
+	
+.PHONY : hlk_flash_rf_backup 
+hlk_flash_rf_backup:hlk_flash_rf_backup.c
+	$(CC)  $(CFLAGS) hlk_flash_rf_backup.c  -o hlk_flash_rf_backup
+
+
+ahoku:write_logo_for_ahoku.c md5_2.c flash_mtd_logo.c
+	$(CC) $(CFLAGS) write_logo_for_ahoku.c md5_2.c flash_mtd_logo.c  des.c config_command.c -o ahoku_write_logo
+
+
+mac_ahoku:write_mac_for_ahoku.c md5_2.c flash_mtd_logo.c
+	$(CC) $(CFLAGS) write_mac_for_ahoku.c md5_2.c flash_mtd_logo.c  des.c config_command.c -o ahoku_write_mac
+
+write_mac_ApClient:write_mac_MakeSureMacForApClient.c md5_2.c flash_mtd_logo.c
+	$(CC) $(CFLAGS) write_mac_MakeSureMacForApClient.c md5_2.c flash_mtd_logo.c  des.c config_command.c -o write_mac_ApClient
+
+
+tcp_test:tcp_test.c
+	$(CC) $(CFLAGS) tcp_test.c -o tcp_test
+	
+key:write_wifikey_for_hlk_rm04.c md5_2.c flash_mtd_logo.c
+	$(CC) $(CFLAGS) write_wifikey_for_hlk_rm04.c md5_2.c flash_mtd_logo.c  des.c config_command.c -o write_wifikey_for_hlk_rm04
+
+
+udid:write_udid_for_hlk_rm04.c md5_2.c flash_mtd_logo.c
+	$(CC) $(CFLAGS) write_udid_for_hlk_rm04.c md5_2.c flash_mtd_logo.c  des.c config_command.c -o write_udid_for_hlk_rm04
+
+

@@ -1,0 +1,234 @@
+#include <sys/types.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <syslog.h>
+#include <signal.h>               
+#include <netdb.h>
+#include <stdio.h>
+#include "ring.h"
+#include "defines.h"
+#include <sys/ioctl.h>
+
+#include <stdlib.h>
+#include <string.h>
+#include <stddef.h>
+#include <ctype.h>
+#include <limits.h>
+#include <stdarg.h>
+#include <assert.h>
+#include <stdint.h>
+#include <errno.h>
+#include "flash.h"
+
+/*MAC*/
+#include <net/if.h> 
+#include <linux/if_ether.h> 
+
+#include "pthread.h"
+
+
+#include <sys/socket.h>
+#include <sys/un.h>
+
+#include <unistd.h>
+
+
+#include <sys/msg.h>
+
+
+#ifndef   uchar
+#define   uchar   unsigned char
+#endif
+#ifndef   uint
+#define   uint    unsigned int
+#endif
+#ifndef   ushort  
+#define   ushort  unsigned short
+#endif
+#ifndef   ulong
+#define   ulong   unsigned long
+#endif
+
+
+
+#define TIM_DEBUG printf
+
+#define TIM_TRACE() TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__)
+
+
+void time_now()
+{
+	struct timeval tv;
+	gettimeofday (&tv , NULL);
+	printf("tv_sec; %d  ", tv.tv_sec) ;
+	printf("tv_usec; %d\n",tv.tv_usec);
+}
+
+
+#define KEY "H@L9K*(343jkdf98325&%*((&532234566xdetr09sdfkw3njxci83027%^&^^%7"
+
+//#define get_key(x) (KEY+((x%7)))
+#define get_key(x) (KEY)
+
+void Decrypt(uchar *data,uint len)
+{
+	uint i;
+	uchar *p;
+	
+	p=data+3;
+	for(i=0;i<((len-3)/8);i++){
+		Lib_DES(p,get_key(i),0);
+		p+=8;
+	}
+	
+	p=data;
+	for(i=0;i<(len/8);i++){
+		Lib_DES(p,get_key(i),0);
+		p+=8;
+	}
+}
+void Encrypt(uchar *data,uint len)
+{
+	uint i;
+	uchar *p=data;
+	for(i=0;i<(len/8);i++){
+		Lib_DES(p,get_key(i),1);
+		p+=8;
+	}
+	
+	p=data+3;
+	for(i=0;i<((len-3)/8);i++){
+		Lib_DES(p,get_key(i),1);
+		p+=8;
+	}
+}
+
+void printf_hex(uchar *p,uint len)
+{
+	uint i;
+	TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	for(i=0;i<len;i++){
+		TIM_DEBUG("%02x ",p[i]);
+	}
+	TIM_DEBUG("\r\n",__FUNCTION__,__LINE__);
+}
+
+void Encrypt_test()
+{
+ uchar xx[1024*500];
+
+	s_DesInit();
+
+
+ 
+	memset(xx,0,sizeof(xx));
+
+	printf_hex(xx,20);
+
+	
+	TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	time_now();
+	Encrypt(xx,sizeof(xx));
+	TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	printf_hex(xx,20);
+	TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	time_now();
+	Decrypt(xx,sizeof(xx));
+	time_now();
+	TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__);
+	printf_hex(xx,20);
+	
+}
+
+int main()
+{
+	uchar mode;
+	TIM_TRACE();
+
+#if 0
+
+//	setenv("UPLOAD_FILENAME","/tmp/tim_uImage",1);
+
+
+//printf("uplaode (%s)\r\n",getenv("UPLOAD_FILENAME"));
+		{
+	uchar out[128];
+
+	config_command("at+out_trans=1",out); TIM_DEBUG("In:%s(%d) (%s)\r\n",__FUNCTION__,__LINE__,out);
+
+return ;
+			}
+
+#endif
+Encrypt_test();
+
+TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+{
+	uint len;
+	uchar *buffer;
+	FILE *fp=0;
+	fp = fopen("tim_uImage", "rb");
+
+	if(fp<=0){
+		TIM_DEBUG("error In:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		return;
+	}
+
+	fseek(fp,0,SEEK_END);
+	len = ftell(fp);    //return NULL;
+	fseek(fp,0,SEEK_SET);
+	buffer = malloc(len);
+	fread(buffer,sizeof( char ),len,fp);
+	fclose(fp);
+
+
+
+
+	TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__);time_now();
+
+	Encrypt(buffer,len);
+
+	TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__);time_now();
+
+	
+	fp = fopen("HLK_RM04.img", "wb");
+
+	if(fp<=0){
+		TIM_DEBUG("error In:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		return;
+	}
+
+	fwrite(buffer,sizeof( char ),len,fp);
+	fclose(fp);
+
+TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__);
+
+#if 1
+	TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__);time_now();
+	Decrypt(buffer,len);
+	TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__);time_now();
+
+	fp = fopen("HLK_RM04_un.img", "wb");
+
+	if(fp<=0){
+		TIM_DEBUG("error In:%s(%d)\r\n",__FUNCTION__,__LINE__);
+		return;
+	}
+
+	fwrite(buffer,sizeof( char ),len,fp);
+	fclose(fp);
+#endif
+	
+TIM_DEBUG("In:%s(%d)\r\n",__FUNCTION__,__LINE__);
+}
+
+
+return 0;
+}
+
+

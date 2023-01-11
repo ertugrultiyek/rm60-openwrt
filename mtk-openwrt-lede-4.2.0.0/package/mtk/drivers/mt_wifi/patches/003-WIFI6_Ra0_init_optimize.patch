@@ -1,0 +1,27 @@
+Index: linux-4.4.198/drivers/net/wireless/mediatek/mt_wifi/os/linux/rt_main_dev.c
+===================================================================
+--- linux-4.4.198.orig/drivers/net/wireless/mediatek/mt_wifi/os/linux/rt_main_dev.c	2020-11-06 10:05:25.000000000 +0800
++++ linux-4.4.198/drivers/net/wireless/mediatek/mt_wifi/os/linux/rt_main_dev.c	2022-06-07 19:02:53.138267022 +0800
+@@ -162,6 +162,7 @@
+ int main_virtual_if_open(struct net_device *net_dev)
+ {
+ 	VOID *pAd = NULL;
++	static int first_start = 1;
+ 
+ 	MTWF_LOG(DBG_CAT_AP, DBG_SUBCAT_ALL, DBG_LVL_OFF, ("%s: ===> %s\n",
+ 		RTMP_OS_NETDEV_GET_DEVNAME(net_dev), __func__));
+@@ -188,8 +189,12 @@
+ 	if (VIRTUAL_IF_INIT(pAd, net_dev) != 0)
+ 		return -1;
+ 
+-	if (VIRTUAL_IF_UP(pAd, net_dev) != 0)
+-		return -1;
++	if (first_start == 0) {
++		if (VIRTUAL_IF_UP(pAd, net_dev) != 0)
++			return -1;
++	}
++
++	first_start = 0;
+ 
+ #endif /* IFUP_IN_PROBE */
+ 	RT_MOD_INC_USE_COUNT();

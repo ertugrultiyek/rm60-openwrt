@@ -1,0 +1,611 @@
+
+make menuconfig
+
+make dep;make
+
+
+tftp -g -r ser2net 192.168.11.245
+
+
+tftp -g -r test1.bin 192.168.11.245
+
+killall ser2net;sleep 1 ;tftp -g -r ser2net 192.168.11.245;chmod 755 ser2net;./ser2net &
+
+killall test1.bin;tftp -g -r test1.bin 192.168.11.245;chmod 755 test1.bin;./test1.bin &
+
+
+cd /tmp/;./test1.bin;sleep 1 ;killall ser2net;sleep 1 ;tftp -g -r ser2net 192.168.11.245;chmod 755 ser2net;./ser2net &
+
+cd /tmp/;./test1.bin;sleep 3 ;killall ser2net;sleep 1 ;tftp -g -r ser2net 192.168.11.245;chmod 755 ser2net;./ser2net &
+
+cd /tmp/;./test1.bin;sleep 1 ;killall ser2net;sleep 1 ;tftp -g -r ser2net 192.168.11.245;chmod 755 ser2net;./ser2net 1>/dev/null &
+
+
+
+
+
+
+cp images/tim_uImage ../../../image/
+
+
+ls -al / >a.txt;ls -al /* >>a.txt;ls -al /*/* >>a.txt;ls -al /*/*/* >>a.txt;
+
+
+ralink_init clear 2860;ralink_init renew 2860 /etc_ro/Wireless/RT2860AP/RT2860_default_vlan;reboot
+
+
+
+make user_only;make romfs;make image;cp images/tim_uImage ../../../image/;cp images/tim_uImage ../../../image/uImage;cp images/tim_uImage user/ser2net/
+
+
+
+make linux;make image;cp images/tim_uImage ../../../image/;cp images/tim_uImage ../../../image/uImage;cp images/tim_uImage user/ser2net/
+
+
+make romfs.post;make image;cp images/tim_uImage ../../../image/;cp images/tim_uImage ../../../image/uImage;cp images/tim_uImage user/ser2net/
+
+
+
+
+174317529705122
+
+
+dnsmasq --address=/Air Pen express/192.168.200.1 
+
+dnsmasq --address=/#/192.168.16.254 --local-ttl=1
+
+dnsmasq --address=/ahoku/192.168.16.254 --local-ttl=1
+dnsmasq --address=/r.ahoku.com/192.168.11.100 --local-ttl=1
+killall dnsmasq;dnsmasq --address=/r.ahoku.com/192.168.11.100 --local-ttl=0
+killall dnsmasq;dnsmasq --address=/r.ahoku.com/192.168.11.100 --local-ttl=1 &
+
+
+cd /tmp/;killall hlk_daemon;tftp -g -r hlk_daemon 192.168.11.245;chmod 755 hlk_daemon;./hlk_daemon 
+
+cd /tmp/;killall hlk_daemon;tftp -g -r hlk_daemon 192.168.16.245;chmod 755 hlk_daemon;./hlk_daemon 
+
+
+Xxm80928957
+
+
+cd /tmp/;tftp -g -r usb_modeswitch_HUAWEI-E1750.conf 192.168.16.245;
+usb_modeswitch -c /tmp/usb_modeswitch_HUAWEI-E1750.conf
+
+tftp -g -r flash_tim 192.168.11.245
+
+cd /tmp/;killall ser2net;tftp -g -r flash_tim 192.168.11.245;chmod 755 flash_tim;./flash_tim 
+
+
+
+
+cd /tmp/;./test1.bin;sleep 1 ;killall ser2net;sleep 1 ;tftp -g -r ser2net 192.168.16.245;chmod 755 ser2net;./ser2net &
+
+
+
+cd /tmp/;./test1.bin;sleep 1 ;killall ser2net;sleep 1 ;tftp -g -r ser2net 192.168.1.245;chmod 755 ser2net;./ser2net &
+
+
+cd /tmp/;killall ser2net;tftp -g -r flash_tim 192.168.16.245;chmod 755 flash_tim;./flash_tim 
+
+
+cd /tmp/;./test1.bin;sleep 1 ;killall ser2net;sleep 1 ;tftp -g -r ser2net 192.168.11.245;chmod 755 ser2net;./ser2net &
+
+
+cd /tmp/;killall test1.bin;tftp -g -r test1.bin 192.168.11.245;chmod 755 test1.bin;./test1.bin &
+
+cd /tmp/;killall test1.bin;tftp -g -r test1.bin 192.168.1.245;chmod 755 test1.bin;./test1.bin &
+
+cd /tmp/;killall test1.bin;tftp -g -r test1.bin 192.168.16.245;chmod 755 test1.bin;./test1.bin &
+
+cd /tmp/;killall nvram_daemon;sleep 1 ;tftp -g -r nvram_daemon 192.168.11.245;chmod 755 nvram_daemon;./nvram_daemon &
+
+
+cd /tmp/;killall wifi_unload.sh;sleep 1 ;tftp -g -r wifi_unload.sh 192.168.16.245;chmod 755 wifi_unload.sh;./wifi_unload.sh &
+
+
+
+cd /tmp/;killall goahead;tftp -g -r goahead 192.168.11.245;chmod 755 goahead;./goahead 
+
+
+
+make user_only;cp user/rt2880_app/nvram/nvram_daemon user/ser2net/
+
+
+
+
+make;cp uboot.img ../RT288x_SDK/source/user/ser2net/
+
+
+
+gongchao12g
+
+
+
+ifconfig br0 down;
+brctl delbr br0;
+ifconfig eth2 0.0.0.0;		
+vconfig rem eth2.1;
+vconfig rem eth2.2;
+rmmod 8021q;
+insmod -q 8021q;
+vconfig add eth2 1;
+#set_vlan_map eth2.1;
+	# vlan priority tag => skb->priority mapping
+	vconfig set_ingress_map eth2.1 0 0;
+	vconfig set_ingress_map eth2.1 1 1;
+	vconfig set_ingress_map eth2.1 2 2;
+	vconfig set_ingress_map eth2.1 3 3;
+	vconfig set_ingress_map eth2.1 4 4;
+	vconfig set_ingress_map eth2.1 5 5;
+	vconfig set_ingress_map eth2.1 6 6;
+	vconfig set_ingress_map eth2.1 7 7;
+
+	# skb->priority => vlan priority tag mapping
+	vconfig set_egress_map eth2.1 0 0;
+	vconfig set_egress_map eth2.1 1 1;
+	vconfig set_egress_map eth2.1 2 2;
+	vconfig set_egress_map eth2.1 3 3;
+	vconfig set_egress_map eth2.1 4 4;
+	vconfig set_egress_map eth2.1 5 5;
+	vconfig set_egress_map eth2.1 6 6;
+	vconfig set_egress_map eth2.1 7 7;
+
+
+
+vconfig add eth2 2;
+#set_vlan_map eth2.2;	
+
+# vlan priority tag => skb->priority mapping
+	vconfig set_ingress_map eth2.2 0 0;
+	vconfig set_ingress_map eth2.2 1 1;
+	vconfig set_ingress_map eth2.2 2 2;
+	vconfig set_ingress_map eth2.2 3 3;
+	vconfig set_ingress_map eth2.2 4 4;
+	vconfig set_ingress_map eth2.2 5 5;
+	vconfig set_ingress_map eth2.2 6 6;
+	vconfig set_ingress_map eth2.2 7 7;
+
+	# skb->priority => vlan priority tag mapping
+	vconfig set_egress_map eth2.2 0 0;
+	vconfig set_egress_map eth2.2 1 1;
+	vconfig set_egress_map eth2.2 2 2;
+	vconfig set_egress_map eth2.2 3 3;
+	vconfig set_egress_map eth2.2 4 4;
+	vconfig set_egress_map eth2.2 5 5;
+	vconfig set_egress_map eth2.2 6 6;
+	vconfig set_egress_map eth2.2 7 7;
+
+
+
+		ifconfig eth2.1 0.0.0.0;
+		ifconfig eth2.2 0.0.0.0;
+
+
+	brctl addbr br0;brctl addif br0 eth2;
+
+ifconfig br0 10.10.10.254
+
+	
+
+ifconfig br0:9 down;
+ifconfig eth2:9 down;
+
+
+
+
+mii_mgr -s -p 0 -r 0 -v 0x3900;
+mii_mgr -s -p 1 -r 0 -v 0x3900;
+mii_mgr -s -p 2 -r 0 -v 0x3900;
+mii_mgr -s -p 3 -r 0 -v 0x3900;
+mii_mgr -s -p 4 -r 0 -v 0x3900;
+
+
+mii_mgr -s -p 0 -r 0 -v 0x3100;
+mii_mgr -s -p 1 -r 0 -v 0x3100;
+mii_mgr -s -p 2 -r 0 -v 0x3100;
+mii_mgr -s -p 3 -r 0 -v 0x3100;
+mii_mgr -s -p 4 -r 0 -v 0x3100;
+
+
+config-powersave.sh cpu 1;
+config-powersave.sh sdr 1;
+config-powersave.sh ddr 1;
+config-powersave.sh ethernet 1 0;
+config-powersave.sh ethernet 1 1;
+config-powersave.sh ethernet 1 2;
+config-powersave.sh ethernet 1 3;
+config-powersave.sh ethernet 1 4;
+config-powersave.sh usb 1;
+config-powersave.sh wireless 1;
+
+
+
+
+
+config-powersave.sh cpu 0;
+config-powersave.sh sdr 0;
+config-powersave.sh ddr 0;
+config-powersave.sh ethernet 0 0;
+config-powersave.sh ethernet 0 1;
+config-powersave.sh ethernet 0 2;
+config-powersave.sh ethernet 0 3;
+config-powersave.sh ethernet 0 4;
+config-powersave.sh usb 0;
+config-powersave.sh wireless 0;
+
+
+reg s b0000000;reg r 40;
+
+
+reg s b0000300;reg r 1c;reg r 4;
+
+reg s b0000300;reg r 1c;reg r 18;
+
+
+nvram_set OperationMode 0
+
+
+174317529705122
+
+cd /tmp/;killall ser2net;tftp -g -r v4lgrab 192.168.16.245;chmod 755 v4lgrab;./v4lgrab 
+
+cd /tmp/;killall ser2net;tftp -g -r v4l1 192.168.16.245;chmod 755 v4l1;./v4l1 
+
+cd /tmp/;killall ser2net;tftp -g -r v4l2 192.168.16.245;chmod 755 v4l2;./v4l2 
+
+cd /tmp/;killall uvc_stream;tftp -g -r uvc_stream 192.168.16.245;chmod 755 uvc_stream;./uvc_stream -r 320x240 -f 25 -p 8081 -b -m yuv 
+
+cd /tmp/;killall uvc_stream;tftp -g -r uvc_stream 192.168.16.245;chmod 755 uvc_stream;./uvc_stream -r 320x240 -f 25 -p 8081  -m yuv &
+
+config-powersave.sh usb 0;
+
+
+cd /tmp/;killall uvc_stream;tftp -g -r uvc_stream 192.168.11.245;chmod 755 uvc_stream;./uvc_stream -r 320x240 -f 25 -p 8081  -m yuv &
+
+cd /tmp/;killall uvc_stream;tftp -g -r uvc_stream 192.168.11.245;chmod 755 uvc_stream;./uvc_stream -r 640x480 -f 25 -p 8081  -m yuv &
+
+
+cd /tmp/;tftp -g -r yuv 192.168.16.245;chmod 755 yuv;./yuv 
+
+cd /tmp/;tftp -g -r libjpeg.so.8 192.168.16.245;chmod 755 libjpeg.so.8;
+
+cd /tmp/;tftp -g -r cjpeg 192.168.16.245;chmod 755 cjpeg;./cjpeg 
+
+
+cd /tmp/;tftp -g -r 00-42741510.jpg 192.168.16.245;
+
+cd /tmp/;tftp -g -r 1.img 192.168.16.245;
+
+
+
+
+config-powersave.sh ethernet 0 4;cd /tmp/;killall ser2net;sleep 1 ;tftp -g -r ser2net 192.168.16.245;chmod 755 ser2net;./ser2net &
+
+
+config-powersave.sh ethernet 0 4;cd /tmp/;killall test1.bin;tftp -g -r test1.bin 192.168.16.245;chmod 755 test1.bin;./test1.bin &
+
+
+
+
+
+
+config-powersave.sh ethernet 0 4;cd /tmp/;killall ser2net;sleep 1 ;tftp -g -r ser2net 192.168.11.245;chmod 755 ser2net;./ser2net &
+
+
+config-powersave.sh ethernet 0 4;cd /tmp/;killall test1.bin;tftp -g -r test1.bin 192.168.11.245;chmod 755 test1.bin;./test1.bin &
+
+
+
+console=ttyS0,57600n8 root=/dev/mtdblock5
+
+console=ttyS1,57600n8 root=/dev/mtdblock5
+
+console=ttyS2,57600n8 root=/dev/mtdblock5
+
+set bootargs console=ttyS0,57600n8 root=/dev/mtdblock5
+set bootargs console=/dev/null,57600n8 root=/dev/mtdblock5
+
+
+console=null,57600n8 root=/dev/mtdblock5
+
+
+nvram_set dhcpLease 7200
+
+nvram_set WscModeOption 0
+
+nvram_get 2860 dhcpLease
+
+
+nvram_set WAN_MAC_ADDR 48:2:2A:7A:7E:93
+
+
+nvram_set Login 
+
+nvram_set Password 
+
+
+adm/hlk_update_www_hlktech_com.asp
+
+ser2net.asp
+
+/adm/hlk_1037283194.asp
+
+cd /tmp/;tftp -g -r eth_mac_tim.sh 192.168.11.245;chmod 755 eth_mac_tim.sh;
+
+cd /tmp/;tftp -g -r flash_tim 192.168.11.245;chmod 755 flash_tim;
+
+cd /tmp/;tftp -g -r flash 192.168.11.245;chmod 755 flash ;
+
+
+
+cd /tmp/;tftp -g -r eth_mac_tim.sh 192.168.11.245;chmod 755 eth_mac_tim.sh;cd /tmp/;tftp -g -r flash 192.168.11.245;chmod 755 flash ;
+
+
+
+174317529705122
+
+cd /tmp/;killall wifi_unload.sh;sleep 1 ;tftp -g -r wifi_unload.sh 192.168.11.245;chmod 755 wifi_unload.sh;./wifi_unload.sh &
+
+
+tftp -g -r tim_uImage 192.168.11.245
+
+tftp -g -r test1.bin 192.168.11.245;chmod 755 test1.bin;./test1.bin &
+
+
+/bin/mtd_write -o 0 -l 3596988 write /tmp/tim_uImage Kernel_RootFS
+
+
+
+cd /tmp/;killall wifi_unload.sh;tftp -g -r wifi_unload.sh 192.168.11.245;chmod 755 wifi_unload.sh;./wifi_unload.sh ;
+
+tftp -g -r tim_uImage 192.168.11.245
+
+/bin/mtd_write -o 0 -l 3596988 write /tmp/tim_uImage Kernel_RootFS
+
+
+tftp -g -r RT2860_default_vlan 192.168.11.245;ralink_init clear 2860;ralink_init renew 2860 /etc_ro/Wireless/RT2860AP/RT2860_default_vlan;
+
+
+
+cd /tmp/;tftp -g -r tested_20121204.bin 192.168.16.245;
+cd /tmp/;killall hlk_flash_rf;tftp -g -r hlk_flash_rf 192.168.16.245;chmod 755 hlk_flash_rf;hlk_flash_rf tested_20121204.bin
+
+
+cd /tmp/;tftp -g -r test_changed_20121205.bin 192.168.11.245;
+cd /tmp/;killall hlk_flash_rf;tftp -g -r hlk_flash_rf 192.168.11.245;chmod 755 hlk_flash_rf;hlk_flash_rf test_changed_20121205.bin
+
+
+
+
+
+
+
+
+
+
+nvram_set dnsPEnabled 1
+nvram_set HostName Air Pen express
+
+
+nvram_set SSID1 PLUGO1;
+nvram_set WebInit 0;
+
+
+
+nvram_set hlk_factory 1
+nvram_set SSID1 HILINK
+
+
+
+nvram_set ahoku_d 1
+
+
+set bootargs console=ttyS0,57600n8 root=/dev/mtdblock5
+set bootargs console=/dev/null,57600n8 root=/dev/mtdblock5
+
+iwpriv ra0 set SiteSurvey=1;iwpriv ra0 get_site_survey
+
+
+
+
+
+iwpriv ra0 connStatus
+
+
+cd /tmp/;tftp -g -r hlk_flash_rf_backup 192.168.11.245;chmod 755 hlk_flash_rf_backup;./hlk_flash_rf_backup 
+
+tftp -g -r hlk_flash_rf_backup 192.168.11.245;chmod 755 hlk_flash_rf_backup;./hlk_flash_rf_backup; tftp -p -r *.rfbin 192.168.11.245;
+
+
+
+
+
+
+
+
+
+cd /tmp/;tftp -g -r eth_mac_tim.sh 192.168.16.245;chmod 755 eth_mac_tim.sh;cd /tmp/;tftp -g -r flash 192.168.16.245;chmod 755 flash ;
+
+
+
+
+
+./eth_mac_tim.sh lan -w 00 0c 43 68 35 56
+
+
+./eth_mac_tim.sh wan -w 00 0c 43 68 35 58
+
+
+
+
+
+
+
+tftp -g -r ser2net_write_key 192.168.16.245;chmod 755 ser2net_write_key;/tmp/ser2net_write_key ;
+
+tftp -g -r ser2net_write_key 192.168.11.245;chmod 755 ser2net_write_key;/tmp/ser2net_write_key ;
+
+
+tftp -g -r ser2net_write_key 192.168.1.245;chmod 755 ser2net_write_key;/tmp/ser2net_write_key ;
+
+wlan led blink
+reg s 1;((while [ 1 ];do (reg m 102c 1 30 1;grep x /lib/libutil.so >/dev/null;reg m 102c 0 30 1;grep x /lib/libutil.so >/dev/null;); done)&);
+
+
+
+
+
+
+
+
+cd /tmp/;killall hlk_daemon;tftp -g -r hlk_daemon 192.168.11.245;chmod 755 hlk_daemon;./hlk_daemon &
+
+
+cd /tmp/;killall wifi_unload.sh;sleep 1 ;tftp -g -r wifi_unload2.sh 192.168.16.245;chmod 755 wifi_unload2.sh;./wifi_unload2.sh &
+
+tftp -g -r tim_uImage 192.168.16.245;
+
+
+
+
+if [ -e /tmp/lock ]; then exit; fi; mkdir /tmp/lock
+
+
+
+cat /proc/sys/net/ipv4/tcp_keepalive_time;
+cat /proc/sys/net/ipv4/tcp_keepalive_intvl;
+cat /proc/sys/net/ipv4/tcp_keepalive_probes;
+
+
+echo 3 > /proc/sys/net/ipv4/tcp_keepalive_time;
+echo 2 > /proc/sys/net/ipv4/tcp_keepalive_intvl;
+echo 3 > /proc/sys/net/ipv4/tcp_keepalive_probes;
+
+echo 3 >/proc/sys/net/ipv4/tcp_retries2
+echo 4 >/proc/sys/net/ipv4/tcp_retries2
+echo 5 >/proc/sys/net/ipv4/tcp_retries2
+
+
+
+
+^Q	0x11	DC1		xon
+^S	0x13	DC3		xoff
+
+
+
+sz17074745@163.gd
+
+
+pcypvh4d
+
+
+
+wifi_Scan=?
+
+
+
+/sbin/getty 57600 /dev/ttyS0
+
+
+
+
+cat /proc/sys/net/ipv4/tcp_tw_recycle;
+cat /proc/sys/net/ipv4/tcp_timestamps;
+cat /proc/sys/net/ipv4/tcp_tw_reuse;
+
+cat /proc/sys/net/ipv4/msl;
+
+echo 1 > /proc/sys/net/ipv4/tcp_tw_reuse;
+echo 1 > /proc/sys/net/ipv4/tcp_timestamps;
+echo 1 > /proc/sys/net/ipv4/tcp_tw_recycle;
+
+
+echo 0 > /proc/sys/net/ipv4/tcp_timestamps;
+
+cat /proc/net/ip_conntrack|grep "TIME_"
+
+
+cat /proc/sys/net/ipv4/netfilter/ip_conntrack_generic_timeout;
+cat /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_timeout_close;
+cat /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_timeout_close_wait;
+cat /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_timeout_fin_wait;
+cat /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_timeout_time_wait;
+cat /proc/sys/net/ipv4/netfilter/ip_conntrack_udp_timeout;
+
+# cat /proc/sys/net/ipv4/netfilter/ip_conntrack_generic_timeout; cat /proc/sys
+/net/ipv4/netfilter/ip_conntrack_tcp_timeout_close; ca
+
+t /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_timeout_close_wait; cat /proc/
+sys/net/ipv4/netfilter/ip_conntrack_tcp_timeout_fin_wa
+
+it; cat /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_timeout_time_wait; cat /
+proc/sys/net/ipv4/netfilter/ip_conntrack_udp_timeout;
+
+600
+10
+60
+120
+120
+180
+# 
+
+
+
+echo 600 > /proc/sys/net/ipv4/netfilter/ip_conntrack_generic_timeout
+echo 10 > /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_timeout_close
+echo 120 > /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_timeout_close_wait
+echo 120 > /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_timeout_fin_wait
+echo 60 > /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_timeout_time_wait
+echo 30 > /proc/sys/net/ipv4/netfilter/ip_conntrack_udp_timeout
+
+
+
+echo 8 > /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_timeout_close_wait;
+echo 16 > /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_timeout_fin_wait;
+echo 16 > /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_timeout_time_wait;
+
+
+
+
+
+
+
+
+
+
+iwpriv ra0 set NetworkType="Infra";
+iwpriv ra0 set AuthMode="WPA2PSK";
+iwpriv ra0 set EncrypType="AES";
+iwpriv ra0 set SSID="HI-LINK_DF5D";
+iwpriv ra0 set WPAPSK="12345678";
+iwpriv ra0 set SSID="HI-LINK_DF5D";
+
+
+iwpriv ra0 set NetworkType="Infra";
+iwpriv ra0 set AuthMode="WPA2PSK";
+iwpriv ra0 set EncrypType="AES";
+iwpriv ra0 set SSID="Travel_WiFi-0133";
+iwpriv ra0 set WPAPSK="12345678";
+iwpriv ra0 set SSID="Travel_WiFi-0133";
+
+
+iwpriv ra0 set NetworkType="Infra";
+iwpriv ra0 set AuthMode="WPA2PSK";
+iwpriv ra0 set EncrypType="AES";
+iwpriv ra0 set SSID="Travel_WiFi-0133";
+iwpriv ra0 set WPAPSK="12345678";
+iwpriv ra0 set SSID="Travel_WiFi-0133";
+
+
+iwpriv ra0 connStatus;
+iwpriv ra0 show SSID;
+iwpriv ra0 show AuthMode;
+iwpriv ra0 show EncrypType;
+iwpriv ra0 show WPAPSK;
+iwpriv ra0 show NetworkType;
+
+
+iwpriv ra0 get_site_survey;
+
+
+

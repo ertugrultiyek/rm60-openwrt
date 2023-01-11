@@ -1,0 +1,13 @@
+#!/bin/sh
+
+#set ucitrack.@hlk-5g[-1].affects=network
+
+uci -q batch <<-EOF >/dev/null
+    delete ucitrack.@hlk-5g[-1]
+    add ucitrack hlk-5g
+    uci add_list ucitrack.@hlk-5g[-1].affects=dhcp
+    commit ucitrack
+EOF
+
+rm -f /tmp/luci-indexcache
+exit 0

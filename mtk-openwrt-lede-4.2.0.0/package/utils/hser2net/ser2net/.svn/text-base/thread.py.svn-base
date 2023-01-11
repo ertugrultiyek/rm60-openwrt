@@ -1,0 +1,431 @@
+#coding=gb18030
+
+#import sys;
+import threading;
+import time;
+import serial;
+import binascii
+#import encodings;
+#import re;
+#import socket;
+
+import socket
+
+COM_PORT = (11-1)
+BAUDRATE = 115200
+
+
+class ComThread:
+    def __init__(self, Port=5):
+        self.l_serial = None
+        self.alive = True
+        self.waitEnd = None
+        self.port = Port
+
+    def waiting(self):
+        if not self.waitEnd is None:
+            self.waitEnd.wait();
+
+    def SetStopEvent(self):
+        if not self.waitEnd is None:
+            self.waitEnd.set();
+        self.alive = False;
+        self.stop();
+
+    def start(self):
+        self.l_serial = serial.Serial();
+        print self.l_serial.portstr;
+        self.l_serial.port = self.port;
+        self.l_serial.baudrate = 9600;
+        self.l_serial.timeout = 0.1;
+        self.l_serial.close();
+        self.l_serial.open();
+        print self.l_serial.portstr;
+
+        if self.l_serial.isOpen():
+            self.waitEnd = threading.Event();
+            self.alive = True;
+            self.thread_read = None;
+            self.thread_read = threading.Thread(target=self.FirstReader);
+            self.thread_read.setDaemon(1);
+            self.thread_read.start();
+            
+            return True;
+        else:
+            return False;
+
+    def FirstReader(self):
+        while self.alive:
+            #receive interval
+            time.sleep(0.1);
+            try:
+                #data = raw_input();
+                #print 'input data from keyboard:',data;
+                strSerial = "abc"
+                strHex = binascii.b2a_hex(strSerial)
+          #      print strHex
+                strhex = strHex.decode("hex")
+          #      print strhex
+          #      self.l_serial.write(strhex);
+                
+                n = self.l_serial.inWaiting();
+         #       print 'n=',n
+                data = '';
+                if n:
+                    data = '';
+                    data = self.l_serial.read(100);
+                    print 'get data from serial port:',data;
+                    time.sleep(3);
+                    #break;
+
+                # ÅÐ¶Ï½áÊø
+                if len(data) > 0 and ord(data[len(data)-1])==0x45:
+                    #pass;
+                    break;
+               
+            except Exception, ex:
+                print str(ex);
+
+        self.waitEnd.set();
+        self.alive = False;
+
+    def stop(self):
+        self.alive = False;
+        self.thread_read.join();
+        if self.l_serial.isOpen():
+            self.l_serial.close();
+
+
+def at_command(arg):
+ #   print arg
+    print '>:',arg;
+  #  print '';
+    l_serial = serial.Serial();
+ #   print l_serial.portstr;
+    l_serial.port = COM_PORT;
+    l_serial.baudrate = BAUDRATE;
+    l_serial.timeout = 0.1;
+    l_serial.close();
+    l_serial.open();
+  #  print l_serial.portstr;
+    l_serial.write(arg);
+    time.sleep(0.2);
+    data = l_serial.read(100);
+    print '<:',data;
+ #   print '';
+    l_serial.close();
+
+
+def Discovery(arg):
+    print arg
+    found=0;
+    l_serial = serial.Serial();
+    #print l_serial.portstr;
+    for baud in [9600,9600,57600,115200,38400,19200,4800,14400,600,300,110,2400,1200]:
+        l_serial.port = arg;
+        l_serial.baudrate = baud;
+        l_serial.timeout = 0.1;
+        l_serial.close();
+        l_serial.open();
+        #print l_serial.portstr;
+        print 'testing ...',l_serial.portstr,' ',baud;
+        l_serial.write('at\r\n');
+        time.sleep(0.2);
+        data = l_serial.read(100);
+        print 'get data from serial port:',data;
+        print ''
+        print 'get data from serial port:END';
+        l_serial.close();
+        if(data == 'at\r\n'):
+            found=1;
+            break;
+
+    if(found == 1):
+        print 'Discovery found!!!: ',l_serial.portstr,' ',baud;
+    else:
+        print 'Discovery failed!!! ';
+    
+    return(baud)
+
+
+HOST = '192.168.11.255' 
+PORT = 988
+BUFSIZ = 1024 
+ADDR = (HOST, PORT)
+
+UDP_TIMEOUT = 5
+
+def time_1():
+    time.sleep(1);
+    if(0 != UDP_TIMEOUT):
+        UDP_TIMEOUT -= 1;
+
+def UDP_Discovery():
+    global ADDR
+    global BUFSIZ
+    global UDP_TIMEOUT
+    udpCliSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    #udpCliSock.setblocking(0)
+    udpCliSock.settimeout(3)
+    udpCliSock.sendto('HLK', ADDR)
+    UDP_TIMEOUT = 2
+    print "----------------------------------"
+    while 1:
+        try:
+            data,ADDR = udpCliSock.recvfrom(BUFSIZ)
+            print ADDR[0],':',data
+        except socket.error, e:   
+            print "----------------------------------"
+            print 'Error receiving data:%s' % e
+            break;
+   #     time.sleep(1);
+  #      UDP_TIMEOUT -= 1;
+    udpCliSock.close();
+  
+
+def UDP_AT(ip, command ):
+    global PORT
+    global BUFSIZ
+    global UDP_TIMEOUT
+    ADDR = (ip, PORT);
+    udpCliSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    #udpCliSock.setblocking(0)
+    udpCliSock.settimeout(1)
+    udpCliSock.sendto("HJ^&%$#(7854462cdEcEOl"+command, ADDR)
+    print "----------------------------------"
+    while 1:
+        try:
+            data,ADDR = udpCliSock.recvfrom(BUFSIZ)
+            print ADDR[0],':',data
+        except socket.error, e:   
+            print "----------------------------------"
+            print 'Error receiving data:%s' % e
+            break;
+   #     time.sleep(1);
+  #      UDP_TIMEOUT -= 1;
+  
+def AT_all_net(command ):
+    UDP_AT('192.168.11.255',command);
+
+def show_menu():
+    print "---------------------------------------------------"
+    print "0. COM Setting."
+    print "1. Discovery."
+    print "2. eth. dhcp."
+    print "3. wifi Client.dhcp."
+    print "4. wifi AP."
+    print "5. tcp client."
+    print "6. tcp server."
+    print "7. udp client."
+    print "8. udp server."
+    print "9. data loop."
+    print "q. exit."
+
+def getchar(xx):
+    '''
+    Equivale al comando getchar() di C
+    '''
+
+    print xx
+    import msvcrt
+    ch = msvcrt.getch();
+#    print ch
+ #   ch = raw_input(xx);
+    return(ch)
+
+def serial_send(value ):
+    l_serial = serial.Serial();
+    #print l_serial.portstr;
+    for baud in [115200]:
+        l_serial.port = 10;
+        l_serial.baudrate = baud;
+        l_serial.timeout = 0.1;
+        l_serial.close();
+        l_serial.open();
+        #print l_serial.portstr;
+        print 'testing ...',l_serial.portstr,' ',baud;
+        l_serial.timeout=10;
+        datax = l_serial.read(5);
+        print datax;
+        l_serial.write(value);
+        l_serial.close();
+        
+    return(baud)
+
+  
+    
+def test1():
+#    threading.start_new_thread(time_1,());
+    global COM_PORT
+    global BAUDRATE
+    option = '';
+    while option != 'q':
+        show_menu();
+        option = getchar('Input option:');
+        if option == '0':
+            print 'option 0'
+            COM_PORT = int(raw_input('COM PORT:'),base=10) -1;
+            print 'COM PORT =',COM_PORT
+        elif option == '1':
+            print 'option 1'
+            BAUDRATE=Discovery(COM_PORT);
+        elif option == '2':
+            print 'option 2'
+            at_command("at\r\n");
+            at_command("at+netmode=1\r\n");
+            at_command("at+dhcpc=1\r\n");
+            at_command("at+net_commit=1\r\n");
+        elif option == '3':
+            print 'option 3'
+            at_command("at\r\n");
+            at_command("at+netmode=2\r\n");
+            at_command("at+wifi_conf=HI-LINK,wpa2_aes,gongchao12g\r\n");
+            at_command("at+dhcpc=1\r\n");
+            at_command("at+net_commit=1\r\n");
+            #at_command();
+        elif option == '4':
+            print 'option 4'
+            at_command("at\r\n");
+            at_command("at+netmode=3\r\n");
+            at_command("at+wifi_conf=Hi-Link_,wpa2_aes,0000000000\r\n");
+            at_command("at+dhcpd=1\r\n");
+            at_command("at+dhcpd_time=3600\r\n");
+            
+            at_command("at+net_commit=1\r\n");
+        elif option == '5':
+            print 'option 5'
+        elif option == '6':
+            print 'option 6'
+        elif option == 'b':
+            print 'option ',option
+            at_command("at\r\n");
+            at_command("at+netmode=1\r\n");
+            at_command("at+dhcpc=0\r\n");
+            at_command("at+net_ip=192.168.11.254,255.255.255.0,192.168.11.1\r\n");
+            at_command("at+net_dns=192.168.11.1,8.8.8.8\r\n");
+            at_command("at+net_commit=1\r\n");
+        elif option == 'n':
+            print 'option ',option
+            at_command("at\r\n");
+            at_command("at+netmode=2\r\n");
+            at_command("at+wifi_conf=HI-LINK,wpa2_aes,gongchao12g\r\n");
+            at_command("at+dhcpc=0\r\n");
+            at_command("at+net_ip=192.168.11.253,255.255.255.0,192.168.11.1\r\n");
+            at_command("at+net_dns=192.168.11.1,4.4.4.4\r\n");
+            at_command("at+net_commit=1\r\n");
+            #at_command();
+        elif option == 'm':
+            print 'option ',option
+            at_command("at\r\n");
+            at_command("at+netmode=3\r\n");
+            at_command("at+wifi_conf=Hi-Link_,wpa2_aes,0000000000\r\n");
+            at_command("at+dhcpd=1\r\n");
+            at_command("at+net_commit=1\r\n");
+        elif option == 'l':
+            print 'option ',option
+            at_command("at\r\n");
+            at_command("at+settings=?xxx\r\n");
+            at_command("at+settings=?xx\r\n");
+            at_command("at+settings=xx=87\r\n");
+            at_command("at+settings_done=\r\n");
+            at_command("at+settings=?xxx\r\n");
+            at_command("at+settings=?xx\r\n");
+            at_command("at+settings=RemoteManagement=1\r\n");
+            at_command("at+settings_done=\r\n");
+        elif option == 'p':
+            print 'option ',option
+            UDP_Discovery();
+        elif option == 'o':
+            print 'option ',option
+   #         at_command("at+settings=AT_UdpAtEn=1\r\n");
+    #        at_command("at+settings_done=\r\n");
+            AT_all_net('at+ver=?\r\n' );
+            AT_all_net('at+net_wanip=?\r\n' );
+    #        AT_all_net('at+excxxx=telnetd;\r\n' );
+        elif option == 'u':
+            print 'option ',option
+            serial_send("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 62\r\n\r\n<center><h1>Hello World!! I am WiFi WebServer!!!</h1></center>");
+
+        elif option == 'y':
+            print 'option ',option
+            at_command('at+ver=?\r\n' );
+            at_command('at+net_wanip=?\r\n' );
+            at_command("at+settings=?AT_UdpAtEn\r\n");
+    #        
+        elif option == 't':
+            print 'option ',option
+   #         at_command("at+settings=AT_UdpAtEn=1\r\n");
+    #        at_command("at+settings_done=\r\n");
+            AT_all_net('at+ver=?\r\n' );
+            AT_all_net('at+net_wanip=?\r\n' );
+#            AT_all_net('at+excxxx=telnetd;\r\n' );
+        elif option == 'f':
+            print 'option ',option
+   #         at_command("at+settings=AT_UdpAtEn=1\r\n");
+    #        at_command("at+settings_done=\r\n");
+      #      AT_all_net('at+ver=?\r\n' );
+      #      AT_all_net('at+net_wanip=?\r\n' );
+            at_command('at+ver=?\r\n' );
+            at_command("at+dhcpd_ip=?\r\n");
+            at_command("at+dhcpd_ip=192.168.16.125,192.168.16.200,255.255.255.0,192.168.16.254\r\n");
+
+            at_command("at+net_commit=1\r\n");
+        elif option == 'v':
+            print 'option ',option
+   #         at_command("at+settings=AT_UdpAtEn=1\r\n");
+    #        at_command("at+settings_done=\r\n");
+      #      AT_all_net('at+ver=?\r\n' );
+      #      AT_all_net('at+net_wanip=?\r\n' );
+            at_command('at+ver=?\r\n' );
+            at_command("at+dhcpd_dns=?\r\n");
+            at_command("at+dhcpd_dns=192.168.16.254,8.8.8.8\r\n");
+
+            at_command("at+net_commit=1\r\n");
+        elif option == '.':
+            print 'option ',option
+            AT_all_net('at+ver=?\r\n' );
+            AT_all_net('at+net_wanip=?\r\n' );
+            AT_all_net('at+excxxx=cd /tmp;tftp -g -r wifi_unload.sh 192.168.11.245;\r\n' );
+            AT_all_net('at+excxxx=chmod 755 /tmp/wifi_unload.sh ;\r\n' );
+            AT_all_net('at+excxxx=(/tmp/wifi_unload.sh);\r\n' );
+        elif option == 'r':
+            print 'option ',option
+            at_command('at+SMaxConn=1\r\n' );
+            at_command('at+SRemoteIpPort=|192.168.22.245:28984|\r\n' );
+            at_command('at+SRemoteIpPort=|192.168.22.245:28984|192.168.22.245:28985|\r\n' );
+            at_command('at+SRemoteIpPort=|192.168.22.245:0|\r\n' );
+            at_command('at+SMaxConn=?\r\n' );
+            at_command('at+SRemoteIpPort=?\r\n' );
+            at_command('at+out_trans=0\r\n' );
+            
+if __name__ == '__mainxx__':
+    rt = ComThread();
+    try:
+        if rt.start():
+            print "1"
+
+            show_menu();
+            
+
+            rt.waiting();
+            print "2"
+            rt.stop();
+        else:
+            pass;            
+    except Exception,se:
+        print str(se);
+
+    if rt.alive:
+        rt.stop();
+
+    print '';
+    print 'End OK .';
+    del rt;
+
+
+if __name__ == '__main__':
+    test1();
+
+    print '';
+    print 'End OK .';
+
