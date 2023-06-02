@@ -6,17 +6,17 @@ STOP=90
 USE_PROCD=1
 
 reset_phy() {
-        switch phy cl22 w 0 0 200
-        switch phy cl22 w 1 0 200
-        switch phy cl22 w 2 0 200
-        switch phy cl22 w 3 0 200
-        switch phy cl22 w 4 0 200
-        sleep 1
         switch phy cl22 w 0 0 9000
         switch phy cl22 w 1 0 9000
         switch phy cl22 w 2 0 9000
         switch phy cl22 w 3 0 9000
         switch phy cl22 w 4 0 9000
+	sleep 1
+	switch phy an 0 1
+	switch phy an 1 1
+	switch phy an 2 1
+	switch phy an 3 1
+	switch phy an 4 1
 }
 
 
