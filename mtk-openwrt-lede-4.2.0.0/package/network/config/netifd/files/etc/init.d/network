@@ -43,6 +43,7 @@ start_service() {
 
 reload_service() {
 	init_switch
+	killall hser2net
 	ubus call network reload
 	reset_phy
 	#/sbin/wifi reload_legacy
@@ -50,6 +51,7 @@ reload_service() {
 
 stop_service() {
 	#/sbin/wifi down
+	killall hser2net
 	ifdown -a
 	sleep 1
 }
@@ -157,6 +159,7 @@ service_triggers()
 
 shutdown() {
 	#/sbin/wifi down
+	killall hser2net
 	ifdown -a
 	sleep 1
 }

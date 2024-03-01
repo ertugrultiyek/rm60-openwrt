@@ -353,19 +353,6 @@ extern uint statistics_serial_tx;
 extern uint statistics_serial_tx2;
 extern uint statistics_serial_tx3;
 
-#if 0
-extern uint tim_test1;
-extern uint tim_test2;
-extern uint tim_test3;
-extern uint tim_test4;
-extern uint tim_test5;
-extern uint tim_test6;
-extern uint tim_test7;
-
-
-extern uint tim_testA[20];
-#endif
-
 uchar AT_uart(uchar *comm, uchar *out)
 {
 	uint ret = 0;
@@ -1220,21 +1207,17 @@ uchar AT_save(uchar *comm, uchar *out)
 		sprintf(out, "");
 		//		return;
 	}
-	TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 	config_all_save_nvram();
-	TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 	//config_do();
-	Need_config_do = 1;
-	TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
-	sprintf(out, "ok");
+	sprintf(out, "ok");    
 }
 
 uchar AT_restart(uchar *comm, uchar *out)
 {
-	TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+	debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 	//config_do();
 	Need_config_do = 1;
-	TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+	debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 	sprintf(out, "ok");
 }
 
@@ -1245,9 +1228,9 @@ uchar AT_status(uchar *comm, uchar *out)
 {
 	uint ret = 0;
 
-	TIM_DEBUG("in:%s(%d)(%d)\r\n", __FUNCTION__, __LINE__, statistics_serial_send);
-	TIM_DEBUG("in:%s(%d)(%d)\r\n", __FUNCTION__, __LINE__, tim_all_len);
-	TIM_DEBUG("in:%s(%d)(%d)\r\n", __FUNCTION__, __LINE__, tim_all_len2);
+	debug_log("in:%s(%d)(%d)\r\n", __FUNCTION__, __LINE__, statistics_serial_send);
+	debug_log("in:%s(%d)(%d)\r\n", __FUNCTION__, __LINE__, tim_all_len);
+	debug_log("in:%s(%d)(%d)\r\n", __FUNCTION__, __LINE__, tim_all_len2);
 }
 
 #ifdef SER2NET_COM2
@@ -1451,12 +1434,12 @@ uchar wifi_ConState(uchar *comm, uchar *out)
 			if (strstr(buf, "ESSID:\"\""))
 			{
 				sprintf(out, "Disconnected");
-				TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+				debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 			}
 			else
 			{
 				sprintf(out, "Connected");
-				TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+				debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 			}
 		} while (0);
 	}
@@ -1502,22 +1485,22 @@ uchar wifi_ConStateold(uchar *comm, uchar *out)
 			if (strstr(buf, "Disconnected"))
 			{
 				sprintf(out, "Disconnected");
-				TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+				debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 			}
 			else if (strstr(buf, "Connected"))
 			{
 				sprintf(out, "Connected");
-				TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+				debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 			}
 			else if (strstr(buf, "Invalid command"))
 			{
 				sprintf(out, "No Connection.");
-				TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+				debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 			}
 			else
 			{
 				sprintf(out, buf);
-				TIM_DEBUG("in:%s(%d)(%s)\r\n", __FUNCTION__, __LINE__, buf);
+				debug_log("in:%s(%d)(%s)\r\n", __FUNCTION__, __LINE__, buf);
 			}
 		} while (0);
 	}
@@ -1562,12 +1545,12 @@ uchar wifi_ConState58(uchar *comm, uchar *out)
 			if (strstr(buf, "ESSID:\"\""))
 			{
 				sprintf(out, "Disconnected");
-				TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+				debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 			}
 			else
 			{
 				sprintf(out, "Connected");
-				TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+				debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 			}
 		} while (0);
 	}
@@ -1762,9 +1745,9 @@ uchar AT_netmode(uchar *comm, uchar *out)
 	}
 	else if ('=' == *(comm + 0))
 	{
-		TIM_DEBUG("in:%s(%d)(%s\r\n", __FUNCTION__, __LINE__, comm);
+		debug_log("in:%s(%d)(%s\r\n", __FUNCTION__, __LINE__, comm);
 		g_AT_netmode = atoi(comm + 1);
-		TIM_DEBUG("in:%s(%d)(%d\r\n", __FUNCTION__, __LINE__, g_AT_netmode);
+		debug_log("in:%s(%d)(%d\r\n", __FUNCTION__, __LINE__, g_AT_netmode);
 		sprintf(out, "ok");
 	}
 	else
@@ -1787,7 +1770,7 @@ uchar AT_wifi_conf(uchar *comm, uchar *out)
 	else if ('=' == *(comm + 0))
 	{
 		g_AT_wifi_conf = at_set_value_(g_AT_wifi_conf, (comm + 1));
-		TIM_DEBUG("in:%s(%d) (%s)\r\n", __FUNCTION__, __LINE__, g_AT_wifi_conf);
+		debug_log("in:%s(%d) (%s)\r\n", __FUNCTION__, __LINE__, g_AT_wifi_conf);
 
 		sprintf(out, "ok");
 	}
@@ -1811,7 +1794,7 @@ uchar AT_discovery_udp_name(uchar *comm, uchar *out)
 	else if ('=' == *(comm + 0))
 	{
 		g_AT_discovery_udp_name = at_set_value_(g_AT_discovery_udp_name, (comm + 1));
-		TIM_DEBUG("in:%s(%d) (%s)\r\n", __FUNCTION__, __LINE__, g_AT_discovery_udp_name);
+		debug_log("in:%s(%d) (%s)\r\n", __FUNCTION__, __LINE__, g_AT_discovery_udp_name);
 
 		sprintf(out, "ok");
 	}
@@ -2063,7 +2046,7 @@ uchar AT_RLANIp(uchar *comm, uchar *out)
 			uchar gw[32];
 			uchar *p1, *p2;
 
-			TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 
 			p1 = (comm + 1);
 
@@ -2086,7 +2069,7 @@ uchar AT_RLANIp(uchar *comm, uchar *out)
 				//			nvram_set_(SER2NET_NVRAM,"wan_gateway",gw);
 			}
 
-			TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 		} while (0);
 
 		sprintf(out, "ok");
@@ -2119,7 +2102,7 @@ uchar AT_Rdhcpd_ip(uchar *comm, uchar *out)
 			uchar gw[32];
 			uchar *p1, *p2;
 
-			TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 
 			p1 = (comm + 1);
 
@@ -2152,7 +2135,7 @@ uchar AT_Rdhcpd_ip(uchar *comm, uchar *out)
 			p1 = p2 + 1;
 			snprintf(gw, sizeof(gw) - 1, p1);
 
-			TIM_DEBUG("in:%s(%d) (%s) (%s) (%s)\r\n", __FUNCTION__, __LINE__, ip, mask, gw);
+			debug_log("in:%s(%d) (%s) (%s) (%s)\r\n", __FUNCTION__, __LINE__, ip, mask, gw);
 
 			{
 				nvram_set_(SER2NET_NVRAM, "dhcpStart", ip);
@@ -2161,7 +2144,7 @@ uchar AT_Rdhcpd_ip(uchar *comm, uchar *out)
 				nvram_set_(SER2NET_NVRAM, "dhcpGateway", gw);
 			}
 
-			TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 		} while (0);
 
 		sprintf(out, "ok");
@@ -2252,7 +2235,7 @@ uchar AT_RapWIFI(uchar *comm, uchar *out)
 			uchar key[32];
 			uchar *p1, *p2;
 
-			TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 
 			p1 = (comm + 1);
 
@@ -2276,7 +2259,7 @@ uchar AT_RapWIFI(uchar *comm, uchar *out)
 			p1 = p2 + 1;
 			snprintf(key, sizeof(key) - 1, p1);
 
-			TIM_DEBUG("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n", __FUNCTION__, __LINE__, g_AT_wifi_conf, ssid, keytype, key);
+			debug_log("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n", __FUNCTION__, __LINE__, g_AT_wifi_conf, ssid, keytype, key);
 
 			{
 				nvram_set_(SER2NET_NVRAM, "SSID1", ssid);
@@ -2350,7 +2333,7 @@ uchar AT_RapWIFI(uchar *comm, uchar *out)
 				nvram_set_(SER2NET_NVRAM, "RekeyMethod", "TIME");
 			}
 
-			TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 		} while (0);
 
 		sprintf(out, "ok");
@@ -2442,7 +2425,7 @@ uchar AT_RapWIFI2(uchar *comm, uchar *out)
 			uchar *p1, *p2;
 			uchar s_len;
 
-			TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 
 			p1 = (comm + 1);
 			s_len = atoi(p1);
@@ -2476,7 +2459,7 @@ uchar AT_RapWIFI2(uchar *comm, uchar *out)
 			p1 = p2 + 1;
 			snprintf(key, sizeof(key) - 1, p1);
 
-			TIM_DEBUG("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n", __FUNCTION__, __LINE__, g_AT_wifi_conf, ssid, keytype, key);
+			debug_log("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n", __FUNCTION__, __LINE__, g_AT_wifi_conf, ssid, keytype, key);
 
 			{
 				nvram_set_(SER2NET_NVRAM, "SSID1", ssid);
@@ -2550,7 +2533,7 @@ uchar AT_RapWIFI2(uchar *comm, uchar *out)
 				nvram_set_(SER2NET_NVRAM, "RekeyMethod", "TIME");
 			}
 
-			TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 		} while (0);
 
 		sprintf(out, "ok");
@@ -2581,7 +2564,7 @@ uchar AT_RstaStatus(uchar *comm, uchar *out)
 				if (strstr(out, "Connected"))
 				{
 					sprintf(out, "Connected");
-					TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+					debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 
 					/*
 ra0       Ralink STA  ESSID:"HI-LINK_D879"  Nickname:"RT2860STA"
@@ -2628,7 +2611,7 @@ ra0       Ralink STA  ESSID:"HI-LINK_D879"  Nickname:"RT2860STA"
 							else
 							{
 								//			sprintf(out,"Disconnected");
-								TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+								debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 							}
 						} while (0);
 
@@ -3066,7 +3049,7 @@ uchar AT_RstaWIFI(uchar *comm, uchar *out)
 			uchar key[32];
 			uchar *p1, *p2;
 
-			TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 
 			p1 = (comm + 1);
 
@@ -3090,7 +3073,7 @@ uchar AT_RstaWIFI(uchar *comm, uchar *out)
 			p1 = p2 + 1;
 			snprintf(key, sizeof(key) - 1, p1);
 
-			TIM_DEBUG("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n", __FUNCTION__, __LINE__, g_AT_wifi_conf, ssid, keytype, key);
+			debug_log("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n", __FUNCTION__, __LINE__, g_AT_wifi_conf, ssid, keytype, key);
 
 			if (0 == strcmp("2", nvram_get(SER2NET_NVRAM, "OperationMode")))
 			{
@@ -3246,7 +3229,7 @@ uchar AT_RstaWIFI(uchar *comm, uchar *out)
 				nvram_set_(SER2NET_NVRAM, "RekeyMethod", "TIME");
 			}
 
-			TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 		} while (0);
 
 		sprintf(out, "ok");
@@ -3385,7 +3368,7 @@ uchar AT_RstaWIFI2(uchar *comm, uchar *out)
 
 			uchar s_len;
 
-			TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 
 			p1 = (comm + 1);
 			s_len = atoi(p1);
@@ -3419,7 +3402,7 @@ uchar AT_RstaWIFI2(uchar *comm, uchar *out)
 			p1 = p2 + 1;
 			snprintf(key, sizeof(key) - 1, p1);
 
-			TIM_DEBUG("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n", __FUNCTION__, __LINE__, g_AT_wifi_conf, ssid, keytype, key);
+			debug_log("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n", __FUNCTION__, __LINE__, g_AT_wifi_conf, ssid, keytype, key);
 
 			if (0 == strcmp("2", nvram_get(SER2NET_NVRAM, "OperationMode")))
 			{
@@ -3575,7 +3558,7 @@ uchar AT_RstaWIFI2(uchar *comm, uchar *out)
 				nvram_set_(SER2NET_NVRAM, "RekeyMethod", "TIME");
 			}
 
-			TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 		} while (0);
 
 		sprintf(out, "ok");
@@ -3613,7 +3596,7 @@ uchar AT_RstaBssid(uchar *comm, uchar *out)
 				nvram_set_(SER2NET_NVRAM, "ApCliBssid", (comm + 1));
 			}
 
-			TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 		} while (0);
 
 		sprintf(out, "ok");
@@ -4060,7 +4043,7 @@ uchar AT_settings(uchar *comm, uchar *out)
 			uchar value[64];
 			uchar *p1, *p2;
 
-			TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 
 			p1 = (comm + 1);
 
@@ -4075,7 +4058,7 @@ uchar AT_settings(uchar *comm, uchar *out)
 			p1 = p2 + 1;
 			snprintf(value, sizeof(value) - 1, p1);
 
-			TIM_DEBUG("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n", __FUNCTION__, __LINE__, (comm + 1), name, value);
+			debug_log("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n", __FUNCTION__, __LINE__, (comm + 1), name, value);
 
 			nvram_bufset(SER2NET_NVRAM, name, value);
 
@@ -4274,7 +4257,7 @@ uchar AT_gpio_write(uchar *comm, uchar *out)
 			uchar *p1, *p2;
 			uchar i, j;
 
-			TIM_DEBUG("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("in:%s(%d)\r\n", __FUNCTION__, __LINE__);
 
 			p1 = (comm + 1);
 
@@ -4289,7 +4272,7 @@ uchar AT_gpio_write(uchar *comm, uchar *out)
 			p1 = p2 + 1;
 			snprintf(value, sizeof(value) - 1, p1);
 
-			TIM_DEBUG("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n", __FUNCTION__, __LINE__, (comm + 1), name, value);
+			debug_log("in:%s(%d) (%s)  (%s) (%s) (%s)\r\n", __FUNCTION__, __LINE__, (comm + 1), name, value);
 
 			i = atoi(name);
 			j = atoi(value);
@@ -4803,13 +4786,16 @@ uchar AT_lanip(uchar *comm, uchar *out)
        if ('?' == *(comm + 1)) {
                sprintf(out, "%s,%s", network_conf.lan.ip, network_conf.lan.netmask);
        } else if ('=' == *(comm + 0)) {
-               //设置LAN IP
-               ret = set_lan_ip(comm+1);
-               if (0 == ret) {
-                       sprintf(out, "ok");
-               } else {
-                       sprintf(out, "error");
-               }
+			//设置LAN IP
+			#if 0
+			ret = set_lan_ip(comm+1);
+			if (0 == ret) {
+					sprintf(out, "ok");
+			} else {
+					sprintf(out, "error");
+			}
+			#endif
+			return AT_para("lanip", comm, out);
        } else {
                sprintf(out, "error");
        }
@@ -5014,41 +5000,56 @@ uchar AT_netsaveapply(uchar *comm, uchar *out)
 
 uchar *uci_cmd(uchar *cmd);
 
-
-
-void setuci2(uchar *a, uchar *b)
+void adduci(uchar *a, uchar *b)
 {
-	uchar buf[512];
-	uchar buf2[512];
-	strcpyT(buf, b, sizeof(buf) - 1);
-	snprintf(buf2, sizeof(buf2) - 1, a, buf);
-	snprintf(buf, sizeof(buf) - 1, "uci set %s", buf2);
+	uchar buf[512] = {0};
+	snprintf(buf, sizeof(buf) - 1, "uci add %s %s", a, b);
+
+    debug_log("cmd:%s", buf);
+
+	system(buf);
+}
 
 
-	if (strstr(buf2, "='"))
+void setuci2(uchar *uci_key, uchar *uci_val)
+{
+    static uchar buf[4096] = {0};
+    static uchar buf2[4096] = {0};
+	static uchar uci_cmd_buf[4096] = {0};
+
+    memset(buf, 0, sizeof(buf));
+    memset(buf2, 0, sizeof(buf2));
+    memset(uci_cmd_buf, 0, sizeof(uci_cmd_buf));
+
+    sprintf(buf, uci_key, uci_val);
+	sprintf(uci_cmd_buf, "uci set %s", buf);
+
+    debug_log("%s", buf);
+    debug_log("uci_cmd_buf :%s ", uci_cmd_buf);
+
+	if (strstr(buf, "='"))
 	{
-		system(buf);
+		debug_log("UCI Command:%s", uci_cmd_buf);
+        system(uci_cmd_buf);
 	}
 	else
 	{
+        return;
 		uchar tt[256];
 		uchar needexec = 1;
-
-		strcpyT2(tt, buf2, sizeof(tt) - 1, '=');
-
 		uchar cmd[256];
+		uchar *cret, *p, *p2;
+
+		strcpyT2(tt, buf, sizeof(tt) - 1, '=');
 
 		snprintf(cmd, sizeof(cmd) - 1, "uci show %s", tt);
-		uchar *cret, *p, *p2;
+
+        debug_log("uci cmd:%s", cmd);
 
 		cret = uci_cmd(cmd);
 
-		if (cret == 0)
-		{
-		}
-		else
-		{
-			if (strstr(cret, buf2))
+		if (cret != 0) {
+			if (strstr(cret, buf))
 			{
 				needexec = 0;
 			}
@@ -5056,7 +5057,7 @@ void setuci2(uchar *a, uchar *b)
 			{
 				uchar *p1, *p2;
 				p1 = strstr(cret, "=");
-				p2 = strstr(buf2, "=");
+				p2 = strstr(buf, "=");
 				if (p1 && p2 && strstr(p1, p2))
 				{
 					needexec = 0;
@@ -5066,7 +5067,7 @@ void setuci2(uchar *a, uchar *b)
 
 		if (needexec)
 		{
-			system(buf);
+			system(uci_cmd_buf);
 		}
 	}
 }
@@ -5075,28 +5076,73 @@ void setuci(uchar *str)
 {
 	uchar *p;
 	uint i = 0;
-	while (strcmp((p = split(str, "\r\n", i++)), "") != 0)
+    char *str_p = strdup(str);
+    char *token = str_p;
+    int len = strlen(str_p);
+    while ( ((p = strstr(token, "\r\n")) != NULL) && (long)(token - str_p) < len ) {
+        *p = '\0';
+
+        debug_log("uci command:%s", token);
+		setuci2("%s", token);
+        token = p+2;
+    }
+    #if 0
+	while (strcmp((p = split(str_p, "\r\n", i++)), "") != 0)
 	{
+        debug_log("uci command:%s", p);
 		setuci2("%s", p);
 	}
+    #endif
 }
 
-void cfgwanip()
+void cfgwanip(void)
 {
-	uchar *wanip = netnvram_get(0, "wanip");
+	uchar *wanip = NULL;
+    char *token = NULL;
+    int num = 0;
+    
+    char *p = netnvram_get(0, "wanip");
+    if (NULL == p) {
+        return;
+    }
+    wanip = strdup(p);
+
 	if (strcmpT(split(wanip, ",", 0), "dhcp") == 0)
 	{
 		setuci2("network.wan.proto='%s'", "dhcp");
 	}
 	else if (strcmpT(split(wanip, ",", 0), "static") == 0)
 	{
-		setuci2("network.wan.proto='%s'", "static");
+        debug_log("wanip:%s", wanip);
+        for (token = strtok(wanip, ","); token != NULL; token = strtok(NULL, ",")) {
+            debug_log("token:%s", token);
+            switch (num++) {
+                case 0:
+                    setuci2("network.wan.proto='%s'", token);
+                break;
+                case 1:
+                    setuci2("network.wan.ipaddr='%s'", token);
+                break;
+                case 2:
+                    setuci2("network.wan.netmask='%s'", token);
+                break;
+                case 3:
+                    setuci2("network.wan.gateway='%s'", token);
+                break;
+                case 4:
+                    setuci2("network.wan.dns='%s'", token);
+                break;
+            }
+        }
+        #if 0
 		setuci2("network.wan.proto='%s'", split(wanip, ",", 0));
 		setuci2("network.wan.ipaddr='%s'", split(wanip, ",", 1));
 		setuci2("network.wan.netmask='%s'", split(wanip, ",", 2));
 		setuci2("network.wan.gateway='%s'", split(wanip, ",", 3));
 		setuci2("network.wan.dns='%s'", split(wanip, ",", 4));
+        #endif
 	}
+    free(wanip);
 }
 
 void setwififile(uchar *file, uchar *a, uchar *b, uchar *c)
@@ -5112,15 +5158,19 @@ void setwififile(uchar *file, uchar *a, uchar *b, uchar *c)
 	system(buf);
 }
 
-void cfgdhcpd()
+void cfgdhcpd(void)
 {
-	uchar *dhcpd = netnvram_get(0, "dhcpd");
+    char *p =netnvram_get(0, "dhcpd");
+    char *token;
+    int num = 0;
+	uchar *dhcpd;
+    
+    if (NULL == p) {
+        return;
+    }
+    dhcpd = strdup(p);
 
 	setuci(
-
-		//"dhcp.lan=dhcp\r\n"\
-
-
 		"dhcp.lan.interface='lan'\r\n"
 		"dhcp.lan.dhcpv6='server'\r\n"
 		"dhcp.lan.ra='server'\r\n"
@@ -5128,24 +5178,51 @@ void cfgdhcpd()
 		"dhcp.lan.start='100'\r\n"
 		"dhcp.lan.limit='150'\r\n"
 		"dhcp.lan.leasetime='12h'\r\n"
-
 	);
 
-	setuci2("dhcp.lan.ignore='%s'", split(dhcpd, ",", 0));
-	setuci2("dhcp.lan.force='%s'", "1");
+    for (token = strtok(dhcpd, ","); token != NULL; token = strtok(NULL, ",")) {
+        debug_log("token:%s", token);
+        switch (num++) {
+            case 0:
+                setuci2("dhcp.lan.ignore='%s'", split(dhcpd, ",", 0));
+            break;
+        }
+    }
+    setuci2("dhcp.lan.force='%s'", "1");
+
+    free(dhcpd);
 }
 
-void cfglanip()
+void cfglanip(void)
 {
-	uchar *lanip = netnvram_get(0, "lanip");
+    char *p = netnvram_get(0, "lanip");
+	uchar *lanip;
+    char *token;
+    int num = 0;
+
+    if (NULL == p) {
+        return;
+    }
+    lanip = strdup(p);
 
 	setuci(
-
 		"network.lan.proto='static'\r\n"
 		"network.lan.ip6assign='60'\r\n");
 
-	setuci2("network.lan.ipaddr='%s'", split(lanip, ",", 0));
-	setuci2("network.lan.netmask='%s'", split(lanip, ",", 1));
+
+    for (token = strtok(lanip, ","); token != NULL; token = strtok(NULL, ",")) {
+        debug_log("token:%s", token);
+        switch (num++) {
+            case 0:
+                setuci2("network.lan.ipaddr='%s'", token);
+            break;
+            case 1:
+                setuci2("network.lan.netmask='%s'", token);
+            break;
+        }
+    }
+
+    free(lanip);
 
 	cfgdhcpd();
 }
@@ -5165,7 +5242,7 @@ wificonf -f /etc/wireless/mediatek/mt7915.dbdc.b0.dat set SSID1 "dkejksdf"
 
 	uchar *p;
 
-	TIM_DEBUG("In:%s(%d)\r\n", __FUNCTION__, __LINE__);
+	debug_log("In:%s(%d)\r\n", __FUNCTION__, __LINE__);
 
 	p = netnvram_get(0, "ap2_4");
 
@@ -5253,7 +5330,7 @@ wificonf -f /etc/wireless/mediatek/mt7915.dbdc.b0.dat set SSID1 "dkejksdf"
 
 		uchar *pfile = "/tmp/hs2nwifi_1.dat";
 
-		TIM_DEBUG("In:%s(%d)\r\n", __FUNCTION__, __LINE__);
+		debug_log("In:%s(%d)\r\n", __FUNCTION__, __LINE__);
 
 		p = netnvram_get(0, "ap5_8");
 
@@ -5508,7 +5585,7 @@ wificonf -f /etc/wireless/mediatek/mt7915.dbdc.b0.dat set SSID1 "dkejksdf"
 		uchar *cret = uci_cmd("cmp /etc/wireless/mediatek/mt7915.dbdc.b0.dat /tmp/hs2nwifi_0.dat&& echo 'files are same' || echo 'files are different'");
 		if (cret && strstr(cret, "differ"))
 		{
-			TIM_DEBUG("In:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("In:%s(%d)\r\n", __FUNCTION__, __LINE__);
 			system("cp /tmp/hs2nwifi_0.dat /etc/wireless/mediatek/mt7915.dbdc.b0.dat");
 			uret = 1;
 		}
@@ -5517,7 +5594,7 @@ wificonf -f /etc/wireless/mediatek/mt7915.dbdc.b0.dat set SSID1 "dkejksdf"
 		uchar *cret = uci_cmd("cmp /etc/wireless/mediatek/mt7915.dbdc.b1.dat /tmp/hs2nwifi_1.dat&& echo 'files are same' || echo 'files are different'");
 		if (cret && strstr(cret, "differ"))
 		{
-			TIM_DEBUG("In:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("In:%s(%d)\r\n", __FUNCTION__, __LINE__);
 			system("cp /tmp/hs2nwifi_1.dat /etc/wireless/mediatek/mt7915.dbdc.b1.dat");
 			uret = 1;
 		}
@@ -5549,7 +5626,7 @@ wificonf -f /etc/wireless/mediatek/mt7915.dbdc.b0.dat set ApEnable 0
 		uchar *cret = uci_cmd("cmp /etc/wireless/mediatek/mt7915.dbdc.b0.dat /tmp/hs2nwifi_0.dat&& echo 'files are same' || echo 'files are different'");
 		if (cret && strstr(cret, "differ"))
 		{
-			TIM_DEBUG("In:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("In:%s(%d)\r\n", __FUNCTION__, __LINE__);
 			system("cp /tmp/hs2nwifi_0.dat /etc/wireless/mediatek/mt7915.dbdc.b0.dat");
 			uret = 1;
 		}
@@ -5558,7 +5635,7 @@ wificonf -f /etc/wireless/mediatek/mt7915.dbdc.b0.dat set ApEnable 0
 		uchar *cret = uci_cmd("cmp /etc/wireless/mediatek/mt7915.dbdc.b1.dat /tmp/hs2nwifi_1.dat&& echo 'files are same' || echo 'files are different'");
 		if (cret && strstr(cret, "differ"))
 		{
-			TIM_DEBUG("In:%s(%d)\r\n", __FUNCTION__, __LINE__);
+			debug_log("In:%s(%d)\r\n", __FUNCTION__, __LINE__);
 			system("cp /tmp/hs2nwifi_1.dat /etc/wireless/mediatek/mt7915.dbdc.b1.dat");
 			uret = 1;
 		}
@@ -5574,19 +5651,14 @@ uchar cfgwifienable2(uchar *s)
 wificonf -f /etc/wireless/mediatek/mt7915.dbdc.b0.dat set ApEnable 0
 
 */
-
 	system("rm -f /tmp/hs2nwifi_0.dat;cp /etc/wireless/mediatek/mt7915.dbdc.b0.dat /tmp/hs2nwifi_0.dat");
 	system("rm -f /tmp/hs2nwifi_1.dat;cp /etc/wireless/mediatek/mt7915.dbdc.b1.dat /tmp/hs2nwifi_1.dat");
-
 	setwififile("/tmp/hs2nwifi_0.dat", "ApEnable", "%s", split(s, ",", 0));
 	setwififile("/tmp/hs2nwifi_0.dat", "ApCliEnable", "%s", split(s, ",", 1));
-
 	setwififile("/tmp/hs2nwifi_1.dat", "ApEnable", "%s", split(s, ",", 2));
 	setwififile("/tmp/hs2nwifi_1.dat", "ApCliEnable", "%s", split(s, ",", 3));
-
 	uchar ss[32];
 	snprintf(ss, sizeof(ss) - 1, s);
-
 	if (strcmpT(split(ss, ",", 0), "1") == 0)
 	{
 		uchar *p;
@@ -5672,7 +5744,6 @@ wificonf -f /etc/wireless/mediatek/mt7915.dbdc.b0.dat set ApEnable 0
 			setwififile(pfile, "Channel", "%s", split(p, ",", 4));
 		}
 	}
-
 	if (strcmpT(split(ss, ",", 1), "1") == 0)
 	{
 
@@ -5756,14 +5827,13 @@ wificonf -f /etc/wireless/mediatek/mt7915.dbdc.b0.dat set ApEnable 0
 			setwififile(pfile, "Channel", "%s", split(p, ",", 4));
 		}
 	}
-
 	if (strcmpT(split(ss, ",", 2), "1") == 0)
 	{
 		uchar *p;
 
 		uchar *pfile = "/tmp/hs2nwifi_1.dat";
 
-		TIM_DEBUG("In:%s(%d)\r\n", __FUNCTION__, __LINE__);
+		debug_log("In:%s(%d)\r\n", __FUNCTION__, __LINE__);
 
 		p = netnvram_get(0, "ap5_8");
 
@@ -5929,7 +5999,6 @@ wificonf -f /etc/wireless/mediatek/mt7915.dbdc.b0.dat set ApEnable 0
 			setwififile(pfile, "Channel", "%s", split(p, ",", 4));
 		}
 	}
-
 	uchar uret = 0;
 
 	{
@@ -5966,6 +6035,41 @@ uchar ucichanges(uchar *v)
 	return 0;
 }
 
+void cfg_firewall(void)
+{
+    int ret = 0;
+    char *remotepro = NULL;
+	if (g_network_protocol == 1) {
+		remotepro = "tcp";
+	} else {
+		remotepro = "udp";
+	}
+
+    //遍历 firewall rule 查找Allow-Ser2net
+    ret = system("uci show firewall |grep Allow-Ser2net");
+	debug_log("system ret:%d", ret);
+    if (0 == ret ) {
+        //存在规则 删除
+		debug_log("delete firewall ser2net");
+		system("index=`uci show firewall|grep Allow-Ser2net|cut -d \"[\" -f 2 | cut -d \"]\" -f 1`;uci delete firewall.@rule[$index]");
+    }
+
+	if (g_network_mode == 1) {
+		adduci("firewall", "rule");
+		setuci2("firewall.@rule[-1].name='%s'", "Allow-Ser2net");
+		setuci2("firewall.@rule[-1].src='%s'", "wan");
+        {
+            char remote_port[32] = {0};
+            sprintf(remote_port, "%d", g_locale_remote_port);
+		    setuci2("firewall.@rule[-1].dest_port='%s'", remote_port);
+        }
+		setuci2("firewall.@rule[-1].proto='%s'", remotepro);
+		setuci2("firewall.@rule[-1].target='%s'", "ACCEPT");
+	}
+
+    return;
+}
+
 void netapply()
 {
 	uchar *p;
@@ -5974,6 +6078,9 @@ void netapply()
 	uchar wifiNeedReload2 = 0;
 
 	p = netnvram_get(0, "netmode");
+
+	//如果配置了tcp/udp的server模式 需要放开防火墙
+	cfg_firewall();
 
 	if (strcmp(p, "sta2_4") == 0)
 	{
@@ -6011,8 +6118,6 @@ void netapply()
 	else if (strcmp(p, "sta5_8") == 0)
 	{
 
-		//"network.wan.proto='dhcp'\r\n"\
-
 		setuci("network.wan=interface\r\n"
 			   "network.wan.ifname='apclix0'\r\n"
 			   "network.wan6=interface\r\n"
@@ -6031,13 +6136,10 @@ void netapply()
 			   "network.@switch_vlan[1]=switch_vlan\r\n"
 			   "network.@switch_vlan[1].device='switch0'\r\n"
 			   "network.@switch_vlan[1].vlan='2'\r\n"
-			   "network.@switch_vlan[1].ports='4 5'\r\n"
+			   "network.@switch_vlan[1].ports=\'4 5\'\r\n"
 			   "network.lan=interface\r\n"
 			   "network.lan.type='bridge'\r\n"
 			   "network.lan.ifname='eth0'\r\n");
-
-		//	system("uci del network.lan");
-
 		cfgwanip();
 		cfglanip();
 
@@ -6555,7 +6657,7 @@ void wifi_power_save(uchar on)
 		wifi_on = 1;
 	}
 
-	TIM_DEBUG("DEBUG:%s(%d)(%d)(%d)\r\n", __FUNCTION__, __LINE__, on, wifi_on);
+	debug_log("DEBUG:%s(%d)(%d)(%d)\r\n", __FUNCTION__, __LINE__, on, wifi_on);
 	if (on != wifi_on)
 	{
 		if (on)
@@ -6704,14 +6806,15 @@ void print_wait_exit(int status)
 uchar *uci_cmd(uchar *cmd)
 {
 	FILE *fp;
-	static char buf[512];
+	static char buf[2048];
 	char *p;
 	int len;
 
-	if (((int)(fp = popen(cmd, "r"))) <= 0)
+	if ( (fp = popen(cmd, "r")) == NULL)
 	{
 		return 0;
 	}
+
 	len = fread(buf, 1, sizeof(buf), fp);
 	if ((len < 5) || (len >= sizeof(buf)))
 	{
@@ -6719,6 +6822,7 @@ uchar *uci_cmd(uchar *cmd)
 
 		return 0;
 	}
+
 	int ret = pclose(fp);
 
 	buf[len] = 0;
@@ -6754,7 +6858,7 @@ uchar *nvram_get(uchar *a, uchar *b)
 {
 	uchar cmd[256];
 
-	snprintf(cmd, sizeof(cmd) - 1, "uci show s2ncfg.@com[0].%s", b);
+	snprintf(cmd, sizeof(cmd) - 1, "uci show s2ncfg.@com[0].%s 2>/dev/null", b);
 	uchar *cret, *p, *p2;
 
 	cret = uci_cmd(cmd);
@@ -6765,7 +6869,6 @@ uchar *nvram_get(uchar *a, uchar *b)
 			if (p2 = strstr(p + 2, "'"))
 			{
 				p2[0] = 0;
-				//syslog(LOG_DEBUG, "%s val:%s", b, p+2);
 				return p + 2;
 			}
 		}
@@ -6776,10 +6879,11 @@ uchar *nvram_get(uchar *a, uchar *b)
 void nvram_set(uchar *a, uchar *b, uchar *c)
 {
 	uchar cmd[256];
-
-	snprintf(cmd, sizeof(cmd) - 1, "uci set s2ncfg.@com[0].%s=%s", b, c);
 	uchar *cret, *p, *p2;
 
+	snprintf(cmd, sizeof(cmd) - 1, "uci set s2ncfg.@com[0].%s=%s", b, c);
+
+    debug_log("cmd:%s", cmd);
 	cret = uci_cmd(cmd);
 	if (cret)
 	{
@@ -6789,9 +6893,9 @@ void nvram_set(uchar *a, uchar *b, uchar *c)
 uchar *netnvram_get(uchar *a, uchar *b)
 {
 	uchar cmd[256];
+	uchar *cret, *p, *p2;
 
 	snprintf(cmd, sizeof(cmd) - 1, "uci show s2ncfg.@net[0].%s", b);
-	uchar *cret, *p, *p2;
 
 	cret = uci_cmd(cmd);
 	if (cret)
@@ -6818,7 +6922,7 @@ void netnvram_set(uchar *a, uchar *b, uchar *c)
 	cret = uci_cmd(cmd);
 	if (cret)
 	{
-		TIM_DEBUG("DEBUG:%s(%d)(%s)\r\n", __FUNCTION__, __LINE__, cret);
+		debug_log("DEBUG:%s(%d)(%s)\r\n", __FUNCTION__, __LINE__, cret);
 	}
 }
 
@@ -6862,7 +6966,7 @@ void nvram_set_ori(uchar *a, uchar *b, uchar *c)
 	cret = uci_cmd(cmd);
 	if (cret)
 	{
-		TIM_DEBUG("DEBUG:%s(%d)(%s)\r\n", __FUNCTION__, __LINE__, cret);
+		debug_log("DEBUG:%s(%d)(%s)\r\n", __FUNCTION__, __LINE__, cret);
 	}
 }
 
@@ -6885,7 +6989,6 @@ void nvram_commit(int i)
 {
 
 	netapply();
-	return;
 
 	uchar cmd[256];
 
@@ -6895,7 +6998,7 @@ void nvram_commit(int i)
 	cret = uci_cmd(cmd);
 	if (cret)
 	{
-		TIM_DEBUG("DEBUG:%s(%d)(%s)\r\n", __FUNCTION__, __LINE__, cret);
+		debug_log("DEBUG:%s(%d)(%s)\r\n", __FUNCTION__, __LINE__, cret);
 	}
 }
 

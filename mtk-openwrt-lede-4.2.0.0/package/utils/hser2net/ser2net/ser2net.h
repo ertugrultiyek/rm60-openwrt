@@ -1,6 +1,8 @@
 #ifndef __SER2NET_H
 #define __SER2NET_H
 
+#include <syslog.h>
+
 #ifndef   uchar
 #define   uchar   unsigned char
 #endif
@@ -37,9 +39,14 @@
 
 #define SER2NET_NVRAM    0
 
-#define TIM_DEBUG(a,...)
+#define TIM_DEBUG(fmt,...) \
+do {\
+	printf("%s %d " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__);\
+	syslog(LOG_DEBUG, "%s %d " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__);\
+} while (0)
 
 #define TIM_WARN printf
+
 #define TIM_ERROR printf
 
 #define debug_log(fmt, arg...) \

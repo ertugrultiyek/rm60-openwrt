@@ -114,7 +114,6 @@ struct tcp_info
 #define TTT_ser2net_tcp_c_check "tcp_client_check"
 #define TTT_ser2net_SRemoteIpPort "SRemoteIpPort"
 
-
 pthread_t serial_thread_id;
 pthread_t server_thread_id;
 pthread_t client_thread_id;
@@ -122,67 +121,6 @@ pthread_t udp_thread_id;
 
 int is_udp_at_cmd = 0;
 int delay_network_restart = 0;
-
-#ifdef SER2NET_COM2
-#if 1
-//uchar *g_serial_config="115200,8,n,1";
-extern uchar *C2_g_serial_config;
-
-extern uchar C2_g_network_mode; //0 ,1 server,2 client
-//uchar *g_remoteip_domain="192.168.11.245";
-extern uchar *C2_g_remoteip_domain;
-extern int C2_g_locale_remote_port;
-extern int C2_g_client_locale_port;
-extern uchar C2_g_network_protocol; //0 none,1 tcp,2 udp
-extern uint C2_g_network_timeout;
-
-extern uint C2_g_serial_package_len;
-extern uint C2_g_serial_package_time;
-extern uint C2_g_serial_package_interval_time;
-
-extern uchar C2_g_tcp_auto_connec;
-
-extern uchar C2_g_tcp_client_stat_check;
-
-extern uchar C2_FLOW_CONTROL_;
-extern uchar C2_XON_XOFF;
-
-extern uchar C2_g_s2n_stat;
-
-extern uchar C2_g_tcp_realtime;
-
-uchar WebDisa;
-
-nvram_t nvram_2[] = {
-	{"C2_uart", 's', &C2_g_serial_config, "57600,8,n,1"},
-	{"C2_mode", 'u', &C2_g_network_mode, "0"},
-	{"C2_remoteip", 's', &C2_g_remoteip_domain, "192.168.1.245"},
-	{"C2_port", 'i', &C2_g_locale_remote_port, "8081"},
-	{"C2_CLport", 'i', &C2_g_client_locale_port, "0"},
-	{"C2_protocol", 'u', &C2_g_network_protocol, "1"},
-	{"C2_timeout", 'i', &C2_g_network_timeout, "0"},
-	{"C2_uartpacklen", 'i', &C2_g_serial_package_len, "64"},
-	{"C2_uartpacktimeout", 'i', &C2_g_serial_package_time, "10"},
-	{"C2_uartpackintertimeout", 'i', &C2_g_serial_package_interval_time, "255"},
-	{"C2_tcp_auto", 'u', &C2_g_tcp_auto_connec, "1"},
-	{"C2_tcp_client_check", 'u', &C2_g_tcp_client_stat_check, "1"},
-	{"C2_RTS", 'u', &C2_FLOW_CONTROL_, "0"},
-	{"C2_XON_XOFF", 'u', &C2_XON_XOFF, "0"},
-	//	{"C2_network_mode",'i',C2_g_s2n_stat},
-	{"C2_TCPRealTime", 'u', &C2_g_tcp_realtime, "0"},
-
-	{"WebDisa", 'u', &WebDisa, "0"},
-};
-
-int nvram_2_sizeof = sizeof(nvram_2);
-
-#endif
-
-extern int C2_init_();
-
-extern uchar C2_config_do();
-
-#endif
 
 void led_init();
 void led_blink();
@@ -196,8 +134,8 @@ void led_set(uchar value);
 
 struct termios oldtio, options;
 
-#define MAX_(A, B) ((A > B) ? A : B)
-#define MIN_(A, B) ((A < B) ? A : B)
+//#define MAX_(A, B) ((A > B) ? A : B)
+//#define MIN_(A, B) ((A < B) ? A : B)
 
 uchar g_select_status = 0;
 
@@ -277,7 +215,6 @@ uchar *g_SRemoteIpPort = 0;
 
 uchar g_tcp_realtime = 0;
 
-//
 #define PM_ETH0 0
 #define PM_ETH1 1
 #define PM_WIFI 2
@@ -286,8 +223,6 @@ uchar g_tcp_realtime = 0;
 #define PM_RESERVE2 5
 #define PM_RESERVE3 6
 #define PM_RESERVE4 7
-
-uchar g_web_en = 0; //bit 0 goahead en. bit 1 ser2net web en.
 
 pthread_mutex_t g_mutex;
 
@@ -348,8 +283,6 @@ int serial_set_speci_baud(int fd, int baud)
 
 	tcgetattr(fd, &options);
 
-	//   cfsetispeed(&options,B38400);
-	//    cfsetospeed(&options,B38400);
 	cfsetispeed(&options, baud);
 	cfsetospeed(&options, baud);
 
@@ -438,20 +371,6 @@ int Serial_Config(int fd, uchar *para)
 	fcntl(fd, F_SETFL, 0);
 	fcntl(fd, F_SETFL, FNDELAY);
 
-	//options.c_cflag&=~PARENB;
-	//options.c_cflag&=~CSTOPB;
-	//options.c_cflag&=~CSIZE;
-	//options.c_cflag|=CS8;
-	//options.c_lflag=0;
-	//options.c_oflag&=(~OPOST);
-	//options.c_cflag|=(CLOCAL|CREAD);
-	//options.c_cc[VTIME]    = 20;  /* inter-character timer use 2s */
-	//options.c_cc[VMIN]     = 0;   /* blocking read until 1 chars received */
-
-	//Add by Ls 20031115   ��ԭʼ���ķ�ʽ�򿪴���,�����κ�����ת��
-	//options.c_lflag  &= ~(ICANON | ECHO | ECHOE | ISIG);  /*Input*/
-	//options.c_oflag  &= ~OPOST;   /*Output*/
-
 	options.c_iflag = 0;
 	options.c_oflag = 0;
 	options.c_lflag = 0;
@@ -493,16 +412,13 @@ int Serial_Config(int fd, uchar *para)
 
 		options.c_cflag |= PARENB;
 		options.c_cflag |= PARODD;
-		//	options.c_iflag |= (INPCK | ISTRIP);
 		options.c_iflag |= (INPCK);
 	}
 	else if ('e' == parity)
 	{
 		options.c_cflag |= PARENB;
 		options.c_cflag &= ~PARODD;
-		//	options.c_iflag |= (INPCK | ISTRIP);
 		options.c_iflag |= (INPCK);
-		//	options.c_iflag |= (ISTRIP );
 	}
 
 	if (1 == stop_bit)
@@ -523,14 +439,10 @@ int Serial_Config(int fd, uchar *para)
 	if (FLOW_CONTROL_)
 	{
 		options.c_cflag |= CIBAUD;
-		//	options.c_cc[]     = 1;
-
-		//system("reg s 0;reg m 620 0 2 1;reg m 624 1 2 1");
 	}
 	else
 	{
 		options.c_cflag &= ~CIBAUD;
-		//	options.c_cc[CIBAUD]     = 0;
 	}
 
 	TIM_WARN("In:%s(%d)(%08x)(%d)\r\n", __FUNCTION__, __LINE__, options.c_cflag, cfgetospeed(&oldtio));
@@ -607,8 +519,6 @@ int Serial_Config(int fd, uchar *para)
 		options.c_iflag |= IXOFF;
 	}
 
-	//	cfsetospeed(&options,speed);
-	//	cfsetispeed(&options,speed);
 	if (cfsetispeed(&options, speed))
 	{
 		TIM_ERROR("ERROR:%s(%d)\r\n", __FUNCTION__, __LINE__);
@@ -654,7 +564,6 @@ uint get_serial_wait_time() //us
 
 	time = 1000000 * (SERIAL_WAITETIME_LEN) / Baud;
 	TIM_DEBUG("in:%s(%d)(%d)\r\n", __FUNCTION__, __LINE__, time);
-	//	time=1000;
 	return time;
 }
 
@@ -682,7 +591,6 @@ uint get_serial_wait_time2(uint count) //us
 
 	time = 1000000 * (count * 10) / Baud;
 	TIM_DEBUG("in:%s(%d)(%d)\r\n", __FUNCTION__, __LINE__, time);
-	//	time=1000;
 	return time;
 }
 
@@ -802,7 +710,6 @@ uint serial_buf_send(uchar *value, uint len)
 	}
 	SERIAL_RELEASE();
 
-	TIM_DEBUG("in:%s(%d) %08x %08x \r\n", __FUNCTION__, __LINE__, serial_buf_tx_out, serial_buf_tx_in);
 	ser2network_notify_serial();
 
 	if (0 == len)
@@ -827,22 +734,19 @@ uint serial_buf_tx_(int fd)
 	int iret = 0;
 	int ret;
 
-	TIM_DEBUG("in:%s(%d) %08x %08x \r\n", __FUNCTION__, __LINE__, serial_buf_tx_out, serial_buf_tx_in);
 	SERIAL_REQUEST();
 	if (serial_buf_tx_out <= serial_buf_tx_in)
 	{
-		TIM_DEBUG("in:%s(%d) %08x %08x \r\n", __FUNCTION__, __LINE__, serial_buf_tx_out, serial_buf_tx_in);
 		len = (serial_buf_tx_in - serial_buf_tx_out);
 		ret = write(fd, serial_buf_tx_out, len);
 		if (ret >= 0)
-		{ //O_NDELAY
+		{
 			serial_buf_tx_out += ret;
 
 			statistics_serial_send += ret;
 		}
 		else
 		{
-			//			TIM_ERROR("ERROR:%s(%d)(%d)(%d)(%s)\r\n",__FUNCTION__,__LINE__,len,ret,strerror(ret));
 			iret = -1;
 		}
 	}
@@ -853,7 +757,7 @@ uint serial_buf_tx_(int fd)
 		len1 = ((serial_buf_tx + sizeof(serial_buf_tx)) - serial_buf_tx_out);
 		ret = write(fd, serial_buf_tx_out, len1);
 		if (ret >= 0)
-		{ //O_NDELAY
+		{
 			if (ret == len1)
 			{
 				int len2;
@@ -861,16 +765,14 @@ uint serial_buf_tx_(int fd)
 
 				ret = write(fd, serial_buf_tx, len2);
 				if (ret >= 0)
-				{ //O_NDELAY
+				{
 					serial_buf_tx_out = serial_buf_tx + ret;
 					statistics_serial_send += ret;
 					statistics_serial_send += len1;
 				}
 				else
 				{
-					//					TIM_ERROR("ERROR:%s(%d)(%d)(%d)(%s)\r\n",__FUNCTION__,__LINE__,len,ret,strerror(ret));
 					iret = -1;
-					//serial_buf_tx_out += ret;
 					serial_buf_tx_out = serial_buf_tx + 0;
 					statistics_serial_send += len1;
 				}
@@ -883,7 +785,6 @@ uint serial_buf_tx_(int fd)
 		}
 		else
 		{
-			//			TIM_ERROR("ERROR:%s(%d)(%d)(%d)(%s)\r\n",__FUNCTION__,__LINE__,len,ret,strerror(ret));
 			iret = -1;
 		}
 	}
@@ -992,13 +893,12 @@ uint socket_buf_tx_(uchar *buf, uint *len_)
 	if (socket_buf_tx_out <= socket_buf_tx_in)
 	{
 		len = (socket_buf_tx_in - socket_buf_tx_out);
-		//		ret = write(fd, socket_buf_tx_out, len);
 		memcpy(buf, (void *)socket_buf_tx_out, len);
 		buf += len;
 		ret = len;
 
 		if (ret >= 0)
-		{ //O_NDELAY
+		{
 			socket_buf_tx_out += ret;
 		}
 		else
@@ -1012,25 +912,23 @@ uint socket_buf_tx_(uchar *buf, uint *len_)
 		int len1;
 		len = socket_buf_LEN - (socket_buf_tx_out - socket_buf_tx_in);
 		len1 = (((uint)socket_buf_tx + sizeof(socket_buf_tx)) - socket_buf_tx_out);
-		//		ret = write(fd, socket_buf_tx_out, len1);
 
 		memcpy(buf, (void *)socket_buf_tx_out, len1);
 		buf += len1;
 		ret = len1;
 
 		if (ret >= 0)
-		{ //O_NDELAY
+		{
 			if (ret == len1)
 			{
 				int len2;
 				len2 = socket_buf_tx_in - (uint)socket_buf_tx;
 
-				//				ret = write(fd, socket_buf_tx, len2);
 				memcpy(buf, socket_buf_tx, len2);
 				buf += len2;
 				ret = len2;
 				if (ret >= 0)
-				{ //O_NDELAY
+				{
 					socket_buf_tx_out = (uint)socket_buf_tx + ret;
 				}
 				else
@@ -1059,7 +957,6 @@ uint socket_buf_tx_(uchar *buf, uint *len_)
 uint timeval_subtract(struct timeval *x, struct timeval *y)
 {
 	unsigned long long nsec1, nsec2;
-	//	  uint	nsec1,nsec2;
 
 	nsec1 = x->tv_sec * 1000000 + x->tv_usec;
 	nsec2 = y->tv_sec * 1000000 + y->tv_usec;
@@ -1067,13 +964,11 @@ uint timeval_subtract(struct timeval *x, struct timeval *y)
 	if (nsec1 < nsec2)
 		return (nsec2 - nsec1);
 	else
-		//		return   0;
 		return (0x0fffffff);
 }
 uint timeval_subtract2(struct timeval *x, struct timeval *y)
 {
 	unsigned long long nsec1, nsec2;
-	//	  uint	nsec1,nsec2;
 
 	nsec1 = x->tv_sec * 1000000 + x->tv_usec;
 	nsec2 = y->tv_sec * 1000000 + y->tv_usec;
@@ -1081,7 +976,6 @@ uint timeval_subtract2(struct timeval *x, struct timeval *y)
 	if (nsec1 <= nsec2)
 		return (nsec2 - nsec1);
 	else
-		//		return   0;
 		return (0x0fffffff);
 }
 
@@ -1133,7 +1027,7 @@ void *serial_thread(void *arg)
 		restart_app();
 	}
 
-	syslog(LOG_DEBUG, "serial thread start");
+	debug_log("serial thread start");
 
 	while (1)
 	{
@@ -1252,14 +1146,12 @@ void *serial_thread(void *arg)
 							time_need = 2;
 						}
 					}
-					TIM_DEBUG("in:%s(%d) %d \r\n", __FUNCTION__, __LINE__, t);
 					tv.tv_sec = t / 1000000;
 					tv.tv_usec = t % 1000000;
 				}
 			}
 		}
 
-		TIM_DEBUG("in:%s(%d) %d %d %d\r\n", __FUNCTION__, __LINE__, maxfd, time_need, time_need);
 		if (time_need)
 		{
 			ret = select(maxfd + 1, &select_fds, NULL, NULL, &tv);
@@ -1276,7 +1168,6 @@ void *serial_thread(void *arg)
 				uint x;
 				uchar buf1[64];
 				x = read(g_notify_serial_fd, buf1, sizeof(buf1));
-				TIM_DEBUG("in:%s(%d) (%d)\r\n", __FUNCTION__, __LINE__, x);
 
 				if (Serial_Flush_now)
 				{
@@ -1302,7 +1193,7 @@ void *serial_thread(void *arg)
 
 			if (FD_ISSET(g_serial_fd, &select_fds))
 			{
-				if (G_serial_mode_get())
+				if (G_serial_mode_get())	//AT模式
 				{
 					uint z;
 					z = read(g_serial_fd, &buf_serial[buf_serial_len], 1);
@@ -1325,7 +1216,6 @@ void *serial_thread(void *arg)
 							continue;
 						}
 
-						//fd_write(g_serial_fd, &buf_serial[buf_serial_len-1], 1);
 						serial_buf_send(&buf_serial[buf_serial_len - 1], 1);
 
 						if ('\r' == buf_serial[buf_serial_len - 1])
@@ -1347,8 +1237,9 @@ void *serial_thread(void *arg)
 						buf_serial_len = 0;
 					}
 				}
-				else
+				else	
 				{
+					//透传模式
 					uint z;
 					z = read(g_serial_fd, &buf_serial[buf_serial_len], MIN_(g_serial_package_len, sizeof(buf_serial) - buf_serial_len));
 					if (0 == buf_serial_len)
@@ -1385,10 +1276,6 @@ void *serial_thread(void *arg)
 
 					buf_serial_len += z;
 
-					TIM_DEBUG("in:%s(%d)  %d\r\n", __FUNCTION__, __LINE__, buf_serial_len);
-					TIM_DEBUG("in:%s(%d)  %d\r\n", __FUNCTION__, __LINE__, g_serial_package_len);
-					//tim_test1++;
-
 					if ((buf_serial_len >= MIN_(g_serial_package_len, sizeof(buf_serial))) || (serial_timeout == 0) || (serial_interval_timeout == 0))
 					{
 						socket_buf_send(buf_serial, buf_serial_len);
@@ -1404,8 +1291,6 @@ void *serial_thread(void *arg)
 						{
 
 							uint serial_time;
-							//	struct timeval now;
-							//	gettimeofday(&now,NULL);
 							{
 								serial_time = timeval_subtract2(&serial_timeout_start, &serial_interval_timeout_start);
 								if (serial_time >= serial_timeout)
@@ -1417,7 +1302,6 @@ void *serial_thread(void *arg)
 									serial_timeout = 0;
 									serial_interval_timeout = 0;
 
-									//			sleep(1);
 								}
 							}
 						}
@@ -1510,7 +1394,6 @@ void *serial_thread(void *arg)
 		close(g_select_quit_fd);
 	}
 
-	//	pthread_exit(0);
 	pthread_detach(pthread_self());
 	return ((void *)0);
 }
@@ -1740,22 +1623,18 @@ void led_tcp_check(int *client)
 	led_set(found);
 }
 
-//#define shutdown2(a,b) do{setsockopt(a, IPPROTO_TCP, TCP_QUICKACK, (int[]){1}, sizeof(int));shutdown(a,b);}while(0)
-
 int shutdown2(int sockfd, int how)
 {
 	setsockopt(sockfd, IPPROTO_TCP, TCP_QUICKACK, (int[]){1}, sizeof(int));
-	//	sleep(1);
-	//usleep(300000);
 
 	return shutdown(sockfd, how);
 }
 
 void *ser2network_server_thread(void *arg)
 {
+	int ret;
 	uchar first_run = 1;
 	uchar listened = 0;
-	int ret;
 
 	uint rx_need_wait = 0;
 	struct timeval rx_need_wait_start;
@@ -1767,19 +1646,15 @@ void *ser2network_server_thread(void *arg)
 	fd_set select_fds;
 
 	int listenfd = 0, connfd = 0, sockfd = 0, maxfd, maxi, i;
-	int nready, client[MAX_CONNECTS]; //!> ����select����ֵ������ͻ����׽���
+	int nready, client[MAX_CONNECTS];
 	int lens;
 	socklen_t clilen;
 	struct sockaddr_in servaddr, chiaddr;
 
-	ssize_t n; //!> read�ֽ���
+	ssize_t n;
 	uchar buf[SERIAL_BUF_LEN];
-	//	uchar	   buf_serial[SERIAL_BUF_LEN];
-	//	uint buf_serial_len=0;
 
 	uint client_tick[MAX_CONNECTS];
-
-	//	uint serial_timeout=0;
 
 	led_set(0);
 
@@ -1789,7 +1664,6 @@ again1:
 	if ((mkfifo(SERVER_QUIT_PIPE_DEV, 0777) < 0) && (errno != EEXIST))
 	{
 		TIM_ERROR("ERROR:%s(%d)\r\n", __FUNCTION__, __LINE__);
-		//			exit(1);
 	}
 
 	g_select_quit_fd = open(SERVER_QUIT_PIPE_DEV, O_NONBLOCK | O_RDWR);
@@ -1807,7 +1681,6 @@ again2:
 	if ((mkfifo(NOTIFY_SOCKET_PIPE_DEV, 0777) < 0) && (errno != EEXIST))
 	{
 		TIM_ERROR("ERROR:%s(%d)\r\n", __FUNCTION__, __LINE__);
-		//			exit(1);
 	}
 
 	g_notify_socket_fd = open(NOTIFY_SOCKET_PIPE_DEV, O_NONBLOCK | O_RDWR);
@@ -1827,7 +1700,6 @@ again3:
 	if ((mkfifo(NOTIFY_PIPE_DEV, 0777) < 0) && (errno != EEXIST))
 	{
 		TIM_ERROR("ERROR:%s(%d)\r\n", __FUNCTION__, __LINE__);
-		//			exit(1);
 	}
 
 	g_notify_fd = open(NOTIFY_PIPE_DEV, O_NONBLOCK | O_RDWR);
@@ -1988,7 +1860,7 @@ out1:
 					clilen = sizeof(chiaddr);
 
 					if ((connfd = accept(listenfd, (struct sockaddr *)&chiaddr, &clilen)) == -1)
-					{ //!> accept ���صĻ����׽���
+					{ 
 						TIM_ERROR("Error : %d(%s)\n", errno, strerror(errno));
 						TIM_ERROR("ERROR:%s(%d)\r\n", __FUNCTION__, __LINE__);
 						continue;
@@ -2000,21 +1872,16 @@ out1:
 					}
 
 					{
-						// ���ջ�����
-						int nRecvBuf = 1024 * 4; //����Ϊ32K
+						int nRecvBuf = 1024 * 4;
 						setsockopt(connfd, SOL_SOCKET, SO_RCVBUF, (const char *)&nRecvBuf, sizeof(int));
-						//���ͻ�����
-						int nSendBuf = 1024 * 4; //����Ϊ32K
+						int nSendBuf = 1024 * 4;
 						setsockopt(connfd, SOL_SOCKET, SO_SNDBUF, (const char *)&nSendBuf, sizeof(int));
 					}
 					if (1)
 					{
-						// ���ջ�����
 						struct timeval timeout;
 						timeout.tv_sec = 33;
 						timeout.tv_usec = 0;
-
-						//		   int timeout=1000;
 
 						setsockopt(connfd, SOL_SOCKET, SO_SNDTIMEO, (const char *)&timeout, sizeof(int));
 						setsockopt(connfd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout, sizeof(int));
@@ -2028,7 +1895,6 @@ out1:
 							int optval;
 							socklen_t optlen = sizeof(optval);
 
-							/* Check the status for the keepalive option */
 							if (getsockopt(s, SOL_SOCKET, SO_KEEPALIVE, &optval, &optlen) < 0)
 							{
 								perror("getsockopt()");
@@ -2037,7 +1903,6 @@ out1:
 							}
 							printf("SO_KEEPALIVE is %s\n", (optval ? "ON" : "OFF"));
 
-							/* Set the option active */
 							optval = 1;
 							optlen = sizeof(optval);
 							if (setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen) < 0)
@@ -2048,7 +1913,6 @@ out1:
 							}
 							printf("SO_KEEPALIVE set on socket\n");
 
-							/* Check the status again */
 							if (getsockopt(s, SOL_SOCKET, SO_KEEPALIVE, &optval, &optlen) < 0)
 							{
 								perror("getsockopt()");
@@ -2068,10 +1932,7 @@ out1:
 							optlen = sizeof(optval);
 							if (setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen) < 0)
 							{
-								//		perror("setsockopt()");
 								TIM_ERROR("ERROR:%s(%d)\r\n", __FUNCTION__, __LINE__);
-								//	close(s);
-								//	exit(EXIT_FAILURE);
 							}
 
 #define SOL_TCP 6
@@ -2121,7 +1982,7 @@ out1:
 
 						sprintf(tmp, "|%s:0|", inet_ntoa(chiaddr.sin_addr));
 
-						TIM_DEBUG("ERROR:%s(%d)(%s)\r\n", __FUNCTION__, __LINE__, tmp);
+						TIM_DEBUG("ERROR:%s(%d)(%s) g_SRemoteIpPort:%s\r\n", __FUNCTION__, __LINE__, tmp, g_SRemoteIpPort);
 
 						if (0 == strstr(g_SRemoteIpPort, tmp))
 						{
@@ -2146,7 +2007,7 @@ out1:
 						{
 							shutdown2(client[i], SHUT_RDWR);
 							close(client[i]);
-							client[i] = -1; //led_tcp_check(client);
+							client[i] = -1;
 						}
 
 						if (client[i] < 0)
@@ -2158,15 +2019,14 @@ out1:
 						}
 					}
 
-					//	if( i ==MAX_CONNECTS ){
 					if (i >= g_SMaxConn)
 					{
 
 						TIM_ERROR("To many ... ");
 						TIM_ERROR("ERROR:%s(%d)(%d)(%d)\r\n", __FUNCTION__, __LINE__, i, g_SMaxConn);
-						close(connfd); //!> if ������ô�Ͳ��������ˣ��رհ�
+						close(connfd);
 						client[i] = -1;
-						continue; //!> ����
+						continue;
 					}
 
 					if (1 == G_serial_mode_get())
@@ -2201,7 +2061,7 @@ out1:
 						led_set(0);
 					}
 
-					serial_buf_send(buf, recvLen); //!> ��������д��ȥ
+					serial_buf_send(buf, recvLen);
 				}
 			}
 
@@ -2223,9 +2083,6 @@ out1:
 								client_tick[i] = now;
 							}
 
-							//memset( buf,0, sizeof( buf ));
-
-							//						n = read(sockfd, buf, SERIAL_BUF_LEN);
 							n = read(sockfd, buf, lenx);
 
 							if (n < 0)
@@ -2259,14 +2116,12 @@ out1:
 								{
 									TIM_ERROR("ERROR:%s(%d)\r\n", __FUNCTION__, __LINE__);
 									buf[0] = 0;
-									//usleep(1000);
 									rx_need_wait = 500 * 1000;
 									gettimeofday(&rx_need_wait_start, NULL);
 								}
 								else
 								{
 									buf[0] = 0;
-									//usleep(1000);
 									rx_need_wait = get_serial_wait_time();
 									gettimeofday(&rx_need_wait_start, NULL);
 								}
@@ -2275,7 +2130,6 @@ out1:
 							TIM_DEBUG("Server Recv: %s\n", buf);
 
 							TIM_DEBUG("Server send : %s\n", buf);
-							//fd_write(g_serial_fd, buf, n); 	 //!> ��������д��ȥ
 							serial_buf_send(buf, n);
 						}
 						else if ((g_network_timeout) && ((now - client_tick[i]) > g_network_timeout))
@@ -2301,8 +2155,6 @@ out1:
 							TIM_ERROR("ERROR:%s(%d)\r\n", __FUNCTION__, __LINE__);
 						}
 						TIM_DEBUG("in:%s(%d) %d %d\r\n", __FUNCTION__, __LINE__, i, client[i]);
-						//sleep(1);
-						//	close(client[i]);
 						if (close(client[i]) < 0)
 						{
 							TIM_ERROR("ERROR:%s(%d)\r\n", __FUNCTION__, __LINE__);
@@ -2318,7 +2170,6 @@ out1:
 
 				led_set(0);
 
-				//				g_select_status=0;
 				break;
 			}
 		}
@@ -2362,7 +2213,6 @@ out1:
 				if (1 == g_network_protocol)
 				{
 
-					//	 if( listen(listenfd, MAX_CONNECTS ) == -1 ){
 					if (listen(listenfd, g_SMaxConn) == -1)
 					{
 						close(listenfd);
@@ -2384,7 +2234,6 @@ out1:
 			{
 				if (rx_need_wait)
 				{
-					//will do in other place.
 				}
 			}
 		}
@@ -2405,7 +2254,6 @@ out1:
 					if (x > 5)
 					{
 						TIM_ERROR("ERROR:%s(%d)reboot\r\n", __FUNCTION__, __LINE__);
-						//system("(killall ser2net;killall -9 ser2net;sleep 1;ser2net)&");
 						restart_app();
 						while (1)
 							sleep(30);
@@ -2427,7 +2275,6 @@ out1:
 	}
 out:
 
-	//	pthread_exit(0);
 	pthread_detach(pthread_self());
 	return ((void *)0);
 }
@@ -2452,7 +2299,7 @@ int hlk_is_connected(int *sockfd)
 
 	if (*sockfd <= 0)
 	{
-		syslog(LOG_DEBUG, "TCP Probe Connected SockFd <= 0");
+		debug_log("TCP Probe Connected SockFd <= 0");
 		return -1;
 	}
 
@@ -2460,24 +2307,22 @@ int hlk_is_connected(int *sockfd)
 	ret = getsockopt(*sockfd, IPPROTO_TCP, TCP_INFO, &info, (socklen_t *)&len);
 	if (ret != 0)
 	{
-		syslog(LOG_DEBUG, "GetSockOpt TCP_INFO Fail ");
+		debug_log("GetSockOpt TCP_INFO Fail ");
 		return -1;
 	}
 
 	if ((TCP_SYN_RECV == info.tcpi_state) || (TCP_SYN_SENT == info.tcpi_state))
 	{
-		syslog(LOG_DEBUG, "TCP Connecting State:%d", info.tcpi_state);
+		debug_log("TCP Connecting State:%d", info.tcpi_state);
 		return 0;
 	}
 	else if (info.tcpi_state != TCP_ESTABLISHED)
 	{
-		//syslog(LOG_DEBUG, "TCP Connect Fail State:%d", info.tcpi_state);
 		close(*sockfd);
 		*sockfd = 0;
 		return -1;
 	}
 
-	//syslog(LOG_DEBUG, "TCP STATE ENTER ESTABLISH ");
 
 	return 1;
 }
@@ -2727,7 +2572,6 @@ again3:
 					{
 						if (lenx)
 						{
-							//recv EOF .remote close the tcp connect.
 							remote_closed = 1;
 							connected = SER2NET_NOT_CONNECT; //连接断开
 							led_set(0);
@@ -2764,7 +2608,7 @@ again3:
 			if (connected == SER2NET_CONNECTING)
 			{ 
 				//TCP 处于正在连接中
-				syslog(LOG_DEBUG, "NetMode 2 TCP Connecting To Server");
+				debug_log("NetMode 2 TCP Connecting To Server");
 				connected = hlk_is_connected(&sockfd);
 			}
 
@@ -2772,7 +2616,7 @@ again3:
 			{
 				if ((he = gethostbyname(g_remoteip_domain)) == NULL)
 				{
-					syslog(LOG_ERR, "remote domain:%s", g_remoteip_domain);
+					debug_log("remote domain:%s", g_remoteip_domain);
 					goto out2;
 				}
 
@@ -2819,23 +2663,19 @@ again3:
 				their_addr.sin_addr = *((struct in_addr *)he->h_addr);
 				their_addr.sin_port = htons(g_locale_remote_port);
 
-				//add by ls for connect timeout bug	2004-10-26
-				fcntl(sockfd, F_SETFL, O_NONBLOCK); //�ļ������ʲ���
+				fcntl(sockfd, F_SETFL, O_NONBLOCK);
 
 				if (1 == g_network_protocol)
 				{
 
 					{
-						// ���ջ�����
-						int nRecvBuf = 1024 * 4; //����Ϊ32K
+						int nRecvBuf = 1024 * 4; 
 						setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (const char *)&nRecvBuf, sizeof(int));
-						//���ͻ�����
-						int nSendBuf = 1024 * 4; //����Ϊ32K
+						int nSendBuf = 1024 * 4;
 						setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (const char *)&nSendBuf, sizeof(int));
 					}
 					if (0)
 					{
-						// ���ջ�����
 						struct timeval timeout;
 						timeout.tv_sec = 1;
 						timeout.tv_usec = 0;
@@ -2968,7 +2808,7 @@ again3:
 									ret = 0;
 								else
 									ret = 1;
-								syslog(LOG_DEBUG, "SO_ERROR res:%d", error);
+								debug_log("SO_ERROR res:%d", error);
 							}
 							else
 								ret = 1; //timeout or error happen
@@ -3004,12 +2844,12 @@ again3:
 					}
 					if (1 == g_network_protocol)
 					{
-						syslog(LOG_DEBUG, "NetMode 2 TCP Connect To Server: ");
+						debug_log("NetMode 2 TCP Connect To Server: ");
 						connected = SER2NET_CONNECTING; //仍然需要TCP 连接仍需确认是否到达 ESTABLISH状态
 					}
 					else if (2 == g_network_protocol)
 					{
-						syslog(LOG_DEBUG, "NetMode 2 UDP Connecting To Server");
+						debug_log("NetMode 2 UDP Connecting To Server");
 						connected = SER2NET_CONNECTED; //UDP 连接状态直接变为已连接
 					}
 					led_set(1);
@@ -3024,8 +2864,6 @@ again3:
 
 				if (rx_need_wait)
 				{
-					//will do in other place.
-					//TIM_ERROR("q\r\n");
 				}
 			}
 		}
@@ -3044,7 +2882,6 @@ again3:
 					if (x > 5)
 					{
 						TIM_ERROR("ERROR:%s(%d)reboot\r\n", __FUNCTION__, __LINE__);
-						//	system("(killall ser2net;killall -9 ser2net;sleep 1;ser2net)&");
 						restart_app();
 
 						while (1)
@@ -3083,7 +2920,6 @@ out:
 	if (g_notify_fd)
 		close(g_notify_fd);
 
-	//	pthread_exit(0);
 	pthread_detach(pthread_self());
 	return ((void *)0);
 }
@@ -3135,7 +2971,6 @@ uchar config_listen_handle()
 		return -1;
 	}
 
-	//listen sockfd
 	ret = listen(listen_fd, 5);
 
 	if (ret)
@@ -3151,39 +2986,9 @@ uchar config_listen_handle()
 
 		if (Need_config_do)
 		{
-
-#ifdef SER2NET_COM2
-			{
-				static uchar stat = 0;
-
-				//	if(config_do()&&C2_config_do())
-				//		Need_config_do=0;
-
-				if (stat == 0)
-				{
-					if (config_do())
-						stat = 1;
-				}
-
-				if (stat == 1)
-				{
-					if (C2_config_do())
-						stat = 2;
-				}
-
-				if (stat >= 2)
-				{
-					Need_config_do = 0;
-					stat = 0;
-				}
-			}
-			//	if(config_do()&&C2_config_do())
-			//		Need_config_do=0;
-#else
-			if (config_do())
+			//system("killall hser2net");
+			//if (config_do())
 				Need_config_do = 0;
-
-#endif
 		}
 
 		FD_ZERO(&select_fds);
@@ -3191,6 +2996,7 @@ uchar config_listen_handle()
 
 		if (Need_config_do)
 		{
+
 			struct timeval tv;
 			tv.tv_sec = 0;
 			tv.tv_usec = 1000;
@@ -3198,10 +3004,10 @@ uchar config_listen_handle()
 		}
 		else
 		{
+
 			ret = select(listen_fd + 1, &select_fds, NULL, NULL, NULL);
 		}
 
-		//	ret = select(listen_fd+1,&select_fds,NULL,NULL,NULL);
 
 		if (ret > 0)
 		{
@@ -3214,15 +3020,11 @@ uchar config_listen_handle()
 				{
 					TIM_ERROR("LastError : %d(%s)\n", errno, strerror(errno));
 					TIM_ERROR("ERROR:%s(%d)\r\n", __FUNCTION__, __LINE__);
-					//close(listen_fd);
-					//unlink(SER2NET_CFG_DOMAIN);
-					//return -1;
 					error_check_1s_2();
 					sleep(1);
 					continue;
 				}
 				{
-					// ���ջ�����
 					struct timeval timeout;
 					timeout.tv_sec = 1;
 					timeout.tv_usec = 0;
@@ -3266,8 +3068,10 @@ uchar config_listen_handle()
 				shutdown2(sockfd, SHUT_RDWR);
 				close(sockfd);
 				if (delay_network_restart) {
+					debug_log("Delay Network Restart");
 					system("uci commit;/etc/init.d/network restart");
 					delay_network_restart = 0;
+					//system("killall hser2net");
 				}
 			}
 		}
@@ -3321,7 +3125,9 @@ uchar config_all_get_nvram()
 	if ((0 != p) && (0 != *p))
 		g_AT_discovery_udp_name = at_set_value_(g_AT_discovery_udp_name, p);
 	else
-		g_AT_discovery_udp_name = at_set_value_(g_AT_discovery_udp_name, "HLK-RM04");
+		g_AT_discovery_udp_name = at_set_value_(g_AT_discovery_udp_name, "HLK-RM60");
+	
+	debug_log("====== g_AT_discovery_udp_name:%s", g_AT_discovery_udp_name);
 
 
 	//加载wifi6 配置
@@ -3334,7 +3140,6 @@ uchar config_all_get_nvram()
 					break;
 				}
 			}
-
 		}
 	}
 
@@ -3401,39 +3206,6 @@ uchar config_all_get_nvram()
 		g_AT_pm = atoi(p);
 #endif
 
-#ifdef SER2NET_COM2
-	{
-		int i;
-		int len = sizeof(nvram_2) / sizeof(nvram_t);
-		for (i = 0; i < len; i++)
-		{
-
-			p = nvram_get(SER2NET_NVRAM, nvram_2[i].nvram_key);
-			if (nvram_2[i].type == 's')
-			{
-				if ((p) && (*p))
-					*(uchar **)nvram_2[i].p = at_set_value_(*(uchar **)nvram_2[i].p, p);
-				else
-					*(uchar **)nvram_2[i].p = at_set_value_(*(uchar **)nvram_2[i].p, nvram_2[i].default_);
-			}
-			else if (nvram_2[i].type == 'i')
-			{
-				if ((p) && (*p))
-					*(int *)nvram_2[i].p = atoi(p);
-				else
-					*(int *)nvram_2[i].p = atoi(nvram_2[i].default_);
-			}
-			else if (nvram_2[i].type == 'u')
-			{
-				if ((p) && (*p))
-					*(uchar *)nvram_2[i].p = atoi(p);
-				else
-					*(uchar *)nvram_2[i].p = atoi(nvram_2[i].default_);
-			}
-		}
-	}
-#endif
-
 	hlk_check1();
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_ser);
@@ -3445,91 +3217,112 @@ uchar config_all_get_nvram()
 		g_serial_config = at_set_value_(g_serial_config, p);
 	}
 
+	debug_log("====== g_serial_config:%s", g_serial_config);
+
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_mode);
 	if (p)
 		g_network_mode = atoi(p);
+	debug_log("====== g_network_mode:%d", g_network_mode);
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_ipdomain);
 	if (p)
 		g_remoteip_domain = at_set_value_(g_remoteip_domain, p);
 	else
 		g_remoteip_domain = at_set_value_(g_remoteip_domain, "192.168.11.245");
+	debug_log("====== g_remoteip_domain:%s", g_remoteip_domain);
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_SRemoteIpPort);
 	if (p && (*p))
 		g_SRemoteIpPort = at_set_value_(g_SRemoteIpPort, p);
 	else
 		g_SRemoteIpPort = at_set_value_(g_SRemoteIpPort, "");
+	debug_log("====== g_SRemoteIpPort:%s", g_SRemoteIpPort);
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_port);
 	if (p)
 		g_locale_remote_port = atoi(p);
+	debug_log("====== g_locale_remote_port:%d", g_locale_remote_port);
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_localeport);
 	if (p && *p)
 		g_client_locale_port = atoi(p);
+	debug_log("====== g_client_locale_port:%d", g_client_locale_port);
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_SMaxConn);
 	if (p && *p)
 		g_SMaxConn = atoi(p);
+	debug_log("====== g_SMaxConn:%d", g_SMaxConn);
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_TCPRT);
 	if (p && *p)
 		g_tcp_realtime = atoi(p);
+	debug_log("====== g_tcp_realtime:%d", g_tcp_realtime);
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_proto);
 	if (p)
 		g_network_protocol = atoi(p);
+	debug_log("====== g_network_protocol:%d", g_network_protocol);
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_time_out);
 	if (p)
 		g_network_timeout = atoi(p);
+	debug_log("====== g_network_timeout:%d", g_network_timeout);
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_tcp_autoc);
 	if (p && (*p != 0x0))
 	{
 		g_tcp_auto_connec = atoi(p);
 	}
+	debug_log("====== g_tcp_auto_connec:%d", g_tcp_auto_connec);
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_tcp_c_check);
 	if (p && (*p != 0x0))
 	{
 		g_tcp_client_stat_check = atoi(p);
 	}
+	debug_log("====== g_tcp_client_stat_check:%d", g_tcp_client_stat_check);
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_ser_pack_len);
 	if (p)
 		g_serial_package_len = atoi(p);
+	debug_log("====== g_serial_package_len:%d", g_serial_package_len);
 
 	hlk_check1();
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_ser_pack_time);
 	if (p)
 		g_serial_package_time = atoi(p);
+	debug_log("====== g_serial_package_time:%d", g_serial_package_time);
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_ser_pack_inter_time);
 	if (p && (*p))
 		g_serial_package_interval_time = atoi(p);
+	debug_log("====== g_serial_package_interval_time:%d", g_serial_package_interval_time);
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_escape_en);
 	if (p && (*p != 0x0))
 		g_transparent_escape_en = atoi(p);
+	debug_log("====== g_transparent_escape_en:%d", g_transparent_escape_en);
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_escape2_en);
 	if (p && (*p != 0x0))
 		g_transparent_escape2_en = atoi(p);
+	debug_log("====== g_transparent_escape2_en:%d", g_transparent_escape2_en);
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_escape2_time);
 	if (p && (*p != 0x0))
 		g_transparent_escape2_time = atoi(p);
+	debug_log("====== g_transparent_escape2_time:%d", g_transparent_escape2_time);
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_RTS);
 	if (p && (*p != 0x0))
 		FLOW_CONTROL_ = atoi(p);
+	debug_log("====== FLOW_CONTROL_:%d", FLOW_CONTROL_);
 
 	p = nvram_get(SER2NET_NVRAM, TTT_ser2net_XON);
 	if (p && (*p != 0x0))
 		XON_XOFF = atoi(p);
+	debug_log("====== XON_XOFF:%d", XON_XOFF);
 
 	return 0;
 }
@@ -3538,14 +3331,9 @@ int nvram_set_(int index, char *name, char *value)
 {
 	nvram_set(index, name, value);
 	return 0;
-	if (strcmp(value, nvram_get(SER2NET_NVRAM, name)))
-	{
-		nvram_bufset(index, name, value);
-	}
 }
 
 char B16ToB10(const char *pszNum)
-//����Ҫ�󣺿��Դ�0xǰ׺��Ҳ�ɲ���ǰ׺
 {
 	int r = 0;
 	if (pszNum)
@@ -3555,44 +3343,54 @@ char B16ToB10(const char *pszNum)
 
 void *config_all_save_nvram_(void *x)
 {
-	uchar buf[32];
-
-	TIM_DEBUG("in:%s(%d)  %d\r\n", __FUNCTION__, __LINE__, g_AT_netmode);
+	uchar buf[512] = {0};
 
 	nvram_close(SER2NET_NVRAM);
 	nvram_init(SER2NET_NVRAM);
 
-	TIM_DEBUG("in:%s(%d)  %d\r\n", __FUNCTION__, __LINE__, g_AT_netmode);
-
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_ser, g_serial_config);
+	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "%d", g_network_mode);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_mode, buf);
 
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_ipdomain, g_remoteip_domain);
+	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "%d", g_locale_remote_port);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_port, buf);
+	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "%d", g_client_locale_port);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_localeport, buf);
+	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "%d", g_network_protocol);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_proto, buf);
+	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "%d", g_network_timeout);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_time_out, buf);
+	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "%d", g_tcp_auto_connec);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_tcp_autoc, buf);
+	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "%d", g_serial_package_len);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_ser_pack_len, buf);
+	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "%d", g_serial_package_time);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_ser_pack_time, buf);
+	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "%d", g_serial_package_interval_time);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_ser_pack_inter_time, buf);
+	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "%d", g_transparent_escape_en);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_escape_en, buf);
+	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "%d", g_transparent_escape2_en);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_escape2_en, buf);
+	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "%d", g_transparent_escape2_time);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_escape2_time, buf);
+	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "%d", FLOW_CONTROL_);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_RTS, buf);
+	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "%d", XON_XOFF);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_XON, buf);
 
@@ -3600,43 +3398,26 @@ void *config_all_save_nvram_(void *x)
 
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_SRemoteIpPort, g_SRemoteIpPort);
 
+	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "%d", g_SMaxConn);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_SMaxConn, buf);
 
+	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "%d", g_tcp_realtime);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_TCPRT, buf);
 
-#ifdef SER2NET_COM2
-	{
-		int i;
-		int len = sizeof(nvram_2) / sizeof(nvram_t);
-		for (i = 0; i < len; i++)
-		{
-			if (nvram_2[i].type == 's')
-			{
-				nvram_set_(SER2NET_NVRAM, nvram_2[i].nvram_key, *(uchar **)nvram_2[i].p);
-			}
-			else if (nvram_2[i].type == 'i')
-			{
-				sprintf(buf, "%d", *(int *)nvram_2[i].p);
-				nvram_set_(SER2NET_NVRAM, nvram_2[i].nvram_key, buf);
-			}
-			else if (nvram_2[i].type == 'u')
-			{
-				sprintf(buf, "%d", *(uchar *)nvram_2[i].p);
-				nvram_set_(SER2NET_NVRAM, nvram_2[i].nvram_key, buf);
-			}
-		}
-	}
-#endif
-
+	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "%d", g_tcp_client_stat_check);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_tcp_c_check, buf);
 
 	nvram_commit(SER2NET_NVRAM);
+	system("sync");
 
 	hlk_check1();
 	pthread_detach(pthread_self());
+
+	Need_config_do = 1;
+
 	return ((void *)0);
 }
 
@@ -3691,7 +3472,6 @@ uchar config_all_save_nvram_2()
 			default:
 				break;
 			}
-			//	sleep(1);
 			last_mode = g_AT_netmode;
 		}
 	}
@@ -3704,23 +3484,6 @@ uchar config_all_save_nvram_2()
 	nvram_init(SER2NET_NVRAM);
 
 	TIM_DEBUG("in:%s(%d)  %d\r\n", __FUNCTION__, __LINE__, g_AT_netmode);
-
-#if 0
-	if (p2penable)
-		nvram_set_(SER2NET_NVRAM, "p2penable", p2penable);
-	if (p2p1)
-		nvram_set_(SER2NET_NVRAM, "p2p1", p2p1);
-	if (p2p2)
-		nvram_set_(SER2NET_NVRAM, "p2p2", p2p2);
-	if (p2p3)
-		nvram_set_(SER2NET_NVRAM, "p2p3", p2p3);
-	if (p2p4)
-		nvram_set_(SER2NET_NVRAM, "p2p4", p2p4);
-	if (p2p5)
-		nvram_set_(SER2NET_NVRAM, "p2p5", p2p5);
-	if (Language)
-		nvram_set_(SER2NET_NVRAM, "Language", Language);
-#endif
 
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_ser, g_serial_config);
 	sprintf(buf, "%d", g_network_mode);
@@ -3756,30 +3519,6 @@ uchar config_all_save_nvram_2()
 
 	sprintf(buf, "%d", g_tcp_client_stat_check);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_tcp_c_check, buf);
-
-#ifdef SER2NET_COM2
-	{
-		int i;
-		int len = sizeof(nvram_2) / sizeof(nvram_t);
-		for (i = 0; i < len; i++)
-		{
-			if (nvram_2[i].type == 's')
-			{
-				nvram_set_(SER2NET_NVRAM, nvram_2[i].nvram_key, *(uchar **)nvram_2[i].p);
-			}
-			else if (nvram_2[i].type == 'i')
-			{
-				sprintf(buf, "%d", *(int *)nvram_2[i].p);
-				nvram_set_(SER2NET_NVRAM, nvram_2[i].nvram_key, buf);
-			}
-			else if (nvram_2[i].type == 'u')
-			{
-				sprintf(buf, "%d", *(uchar *)nvram_2[i].p);
-				nvram_set_(SER2NET_NVRAM, nvram_2[i].nvram_key, buf);
-			}
-		}
-	}
-#endif
 
 #if 1
 
@@ -3934,12 +3673,6 @@ uchar config_all_save_nvram_2()
 				nvram_set_(SER2NET_NVRAM, "staKey1Type", "1");
 				nvram_set_(SER2NET_NVRAM, "staKey1", key);
 
-				//hex
-				//		nvram_set_(SER2NET_NVRAM,"staKey1Type","0");
-				//		nvram_set_(SER2NET_NVRAM,"staKey1",key);
-
-				//128bit
-				//staKey1Length=1
 			}
 			else if ((0 == strcmp(keytype, "wep_open")))
 			{
@@ -3950,12 +3683,6 @@ uchar config_all_save_nvram_2()
 				nvram_set_(SER2NET_NVRAM, "staKey1Type", "1");
 				nvram_set_(SER2NET_NVRAM, "staKey1", key);
 
-				//hex
-				//		nvram_set_(SER2NET_NVRAM,"staKey1Type","0");
-				//		nvram_set_(SER2NET_NVRAM,"staKey1",key);
-
-				//128bit
-				//staKey1Length=1
 			}
 			else if (0 == strcmp(keytype, "wpa_tkip"))
 			{
@@ -3995,8 +3722,6 @@ uchar config_all_save_nvram_2()
 			nvram_set_(SER2NET_NVRAM, "RekeyMethod", "TIME");
 		}
 
-		//if(3 == g_AT_netmode)
-		//if(0 != g_AT_netmode)
 		if ((3 == g_AT_netmode) || (1 == g_AT_netmode) || (0 == g_AT_netmode))
 		{
 
@@ -4129,7 +3854,6 @@ uchar config_all_save_nvram_2()
 
 		} while (0);
 
-		//nvram_set_(SER2NET_NVRAM,"dhcpLease",g_AT_dhcpd_time);
 		if (0 == g_AT_dhcpd_time)
 		{
 			g_AT_dhcpd_time = 86400;
@@ -4229,7 +3953,6 @@ uchar config_all_save_nvram_2()
 #endif
 	nvram_commit(SER2NET_NVRAM);
 
-	//	nvram_close(SER2NET_NVRAM);
 	hlk_check1();
 }
 
@@ -4239,12 +3962,6 @@ uchar config_all_save_nvram_3(uchar m)
 
 	if (m)
 	{
-		p2penable = at_set_value_(p2penable, nvram_get(SER2NET_NVRAM, "p2penable"));
-		p2p1 = at_set_value_(p2p1, nvram_get(SER2NET_NVRAM, "p2p1"));
-		p2p2 = at_set_value_(p2p2, nvram_get(SER2NET_NVRAM, "p2p2"));
-		p2p3 = at_set_value_(p2p3, nvram_get(SER2NET_NVRAM, "p2p3"));
-		p2p4 = at_set_value_(p2p4, nvram_get(SER2NET_NVRAM, "p2p4"));
-		p2p5 = at_set_value_(p2p5, nvram_get(SER2NET_NVRAM, "p2p5"));
 		Language = at_set_value_(Language, nvram_get(SER2NET_NVRAM, "Language"));
 
 #if 1
@@ -4288,18 +4005,6 @@ uchar config_all_save_nvram_3(uchar m)
 
 		nvram_init(SER2NET_NVRAM);
 
-		if (p2penable)
-			nvram_set_(SER2NET_NVRAM, "p2penable", p2penable);
-		if (p2p1)
-			nvram_set_(SER2NET_NVRAM, "p2p1", p2p1);
-		if (p2p2)
-			nvram_set_(SER2NET_NVRAM, "p2p2", p2p2);
-		if (p2p3)
-			nvram_set_(SER2NET_NVRAM, "p2p3", p2p3);
-		if (p2p4)
-			nvram_set_(SER2NET_NVRAM, "p2p4", p2p4);
-		if (p2p5)
-			nvram_set_(SER2NET_NVRAM, "p2p5", p2p5);
 		if (Language)
 			nvram_set_(SER2NET_NVRAM, "Language", Language);
 	}
@@ -4340,30 +4045,6 @@ uchar config_all_save_nvram_3(uchar m)
 
 	sprintf(buf, "%d", g_tcp_client_stat_check);
 	nvram_set_(SER2NET_NVRAM, TTT_ser2net_tcp_c_check, buf);
-
-#ifdef SER2NET_COM2
-	{
-		int i;
-		int len = sizeof(nvram_2) / sizeof(nvram_t);
-		for (i = 0; i < len; i++)
-		{
-			if (nvram_2[i].type == 's')
-			{
-				nvram_set_(SER2NET_NVRAM, nvram_2[i].nvram_key, *(uchar **)nvram_2[i].p);
-			}
-			else if (nvram_2[i].type == 'i')
-			{
-				sprintf(buf, "%d", *(int *)nvram_2[i].p);
-				nvram_set_(SER2NET_NVRAM, nvram_2[i].nvram_key, buf);
-			}
-			else if (nvram_2[i].type == 'u')
-			{
-				sprintf(buf, "%d", *(uchar *)nvram_2[i].p);
-				nvram_set_(SER2NET_NVRAM, nvram_2[i].nvram_key, buf);
-			}
-		}
-	}
-#endif
 
 #if 1
 
@@ -4521,12 +4202,6 @@ uchar config_all_save_nvram_3(uchar m)
 				nvram_set_(SER2NET_NVRAM, "staKey1Type", "1");
 				nvram_set_(SER2NET_NVRAM, "staKey1", key);
 
-				//hex
-				//		nvram_set_(SER2NET_NVRAM,"staKey1Type","0");
-				//		nvram_set_(SER2NET_NVRAM,"staKey1",key);
-
-				//128bit
-				//staKey1Length=1
 			}
 			else if ((0 == strcmp(keytype, "wep_open")))
 			{
@@ -4537,12 +4212,6 @@ uchar config_all_save_nvram_3(uchar m)
 				nvram_set_(SER2NET_NVRAM, "staKey1Type", "1");
 				nvram_set_(SER2NET_NVRAM, "staKey1", key);
 
-				//hex
-				//		nvram_set_(SER2NET_NVRAM,"staKey1Type","0");
-				//		nvram_set_(SER2NET_NVRAM,"staKey1",key);
-
-				//128bit
-				//staKey1Length=1
 			}
 			else if (0 == strcmp(keytype, "wpa_tkip"))
 			{
@@ -4582,8 +4251,6 @@ uchar config_all_save_nvram_3(uchar m)
 			nvram_set_(SER2NET_NVRAM, "RekeyMethod", "TIME");
 		}
 
-		//if(3 == g_AT_netmode)
-		//if(0 != g_AT_netmode)
 		{
 
 			do
@@ -4595,27 +4262,15 @@ uchar config_all_save_nvram_3(uchar m)
 				char i;
 				unsigned char x, y;
 
-				//printf("WARN:%s(%d)\r\n",__FUNCTION__,__LINE__);
-
-				//printf("WARN:%s(%d)(%s)\r\n",__FUNCTION__,__LINE__,(nvram_bufget(RT2860_NVRAM, "SSID1")));
-
-				//	if (0 == strncmp(nvram_bufget(SER2NET_NVRAM, "SSID1"),"Hi-Link_",strlen("Hi-Link_"))) {
-
 				if (0 == strcmp(nvram_bufget(SER2NET_NVRAM, "SSID1"), "Hi-Link_"))
 				{
-					//	if (1) {
 					p = nvram_bufget(SER2NET_NVRAM, "WAN_MAC_ADDR");
-
-					//printf("WARN:%s(%d)(%s)\r\n",__FUNCTION__,__LINE__,p);
 
 					if (p)
 					{
-						//printf("WARN:%s(%d)\r\n",__FUNCTION__,__LINE__);
 						p2 = p;
 						for (i = 0; i < 4; i++)
 						{
-							//printf("WARN:%s(%d)\r\n",__FUNCTION__,__LINE__);
-							//printf("WARN:%s(%d)(%s)\r\n",__FUNCTION__,__LINE__,p2);
 							p3 = strchr(p2, ':');
 							if (0 == p3)
 								break;
@@ -4623,8 +4278,6 @@ uchar config_all_save_nvram_3(uchar m)
 						}
 						if (p3)
 						{
-							//printf("WARN:%s(%d)\r\n",__FUNCTION__,__LINE__);
-							//printf("WARN:%s(%d)(%s)\r\n",__FUNCTION__,__LINE__,p3);
 							x = B16ToB10(p2);
 							p3 = strchr(p2, ':');
 							if (0 == p3)
@@ -4633,28 +4286,9 @@ uchar config_all_save_nvram_3(uchar m)
 							y = B16ToB10(p2);
 							sprintf(ssid, "HI-LINK_%02X%02X", x, y);
 							nvram_bufset(SER2NET_NVRAM, "SSID1", ssid);
-#if 1
 							sprintf(g_AT_wifi_conf, "%s,%s,%s", ssid, keytype, key);
 
 							nvram_bufset(SER2NET_NVRAM, "AT_wifi", g_AT_wifi_conf);
-#else
-							{
-								uchar buf[256];
-								uchar buf2[256];
-								uchar *p1;
-
-								snprintf(buf, sizeof(buf) - 1, nvram_bufget(SER2NET_NVRAM, "AT_wifi"));
-
-								p1 = strstr(buf, "Hi-Link_,");
-
-								if (p1)
-								{
-									snprintf(g_AT_wifi_conf, sizeof(buf2) - 1, "%s,%s", ssid, p1 + strlen("Hi-Link_,"));
-
-									nvram_bufset(SER2NET_NVRAM, "AT_wifi", g_AT_wifi_conf);
-								}
-							}
-#endif
 
 							TIM_WARN("ser2net set ssid to %s\r\n", ssid);
 						}
@@ -4755,7 +4389,6 @@ uchar config_all_save_nvram_3(uchar m)
 
 		} while (0);
 
-		//nvram_set_(SER2NET_NVRAM,"dhcpLease",g_AT_dhcpd_time);
 		if (0 == g_AT_dhcpd_time)
 		{
 			g_AT_dhcpd_time = 86400;
@@ -4854,7 +4487,6 @@ uchar config_all_save_nvram_3(uchar m)
 #endif
 	nvram_commit(SER2NET_NVRAM);
 
-	//	nvram_close(SER2NET_NVRAM);
 	hlk_check1();
 }
 
@@ -4992,25 +4624,26 @@ void ser2network_udp_thread_quit(uchar mode)
 }
 
 
-uchar pthread_is_alive(pthread_t tid) /*pthread_kill�ķ���ֵ���ɹ���0�� �̲߳����ڣ�ESRCH�� �źŲ��Ϸ���EINVAL��*/
+uchar pthread_is_alive(pthread_t tid)
 {
 	int pthread_kill_err;
-
 	unsigned long int xxx = (unsigned long int)(tid);
 
 	if (xxx == 0)
 	{
 		return 0;
 	}
-
 	pthread_kill_err = pthread_kill(tid, 0);
 
-	if (pthread_kill_err == ESRCH)
+	if (pthread_kill_err == ESRCH) {
 		return 0;
-	else if (pthread_kill_err == EINVAL)
+	} else if (pthread_kill_err == EINVAL) {
+		
 		return 1;
-	else
+	} else {
+
 		return 1;
+	}
 }
 
 void *udp_discovery_server(void *arg);
@@ -5021,43 +4654,7 @@ uchar config_do()
 	int i, ret;
 	static uchar start_flags = 0;
 
-
-	ser2network_server_thread_quit(0);
-	ser2network_client_thread_quit(0);
-	ser2network_serial_thread_quit(0);
-	ser2network_udp_thread_quit(0);
-
-
-	usleep(200 * 1000);
-
-	if (pthread_is_alive(serial_thread_id) || pthread_is_alive(server_thread_id) || pthread_is_alive(client_thread_id) || pthread_is_alive(udp_thread_id))
-	{
-
-		usleep(500 * 1000);
-
-		if (pthread_is_alive(serial_thread_id) || pthread_is_alive(server_thread_id) || pthread_is_alive(client_thread_id) || pthread_is_alive(udp_thread_id))
-		{
-
-			TIM_ERROR("ERROR:%s(%d)(%d)(%d)(%d)(%d)\r\n", __FUNCTION__, __LINE__,
-					  pthread_is_alive(serial_thread_id),
-					  pthread_is_alive(server_thread_id),
-					  pthread_is_alive(client_thread_id),
-					  pthread_is_alive(udp_thread_id));
-			if (start_flags++ > 100)
-			{
-				restart_app();
-			}
-			return 0;
-		}
-	}
-
 	start_flags = 0;
-	//while(1);
-
-	ser2network_server_thread_quit(1);
-	ser2network_client_thread_quit(1);
-	ser2network_serial_thread_quit(1);
-	ser2network_udp_thread_quit(1);
 
 	ret = pthread_create(&serial_thread_id, NULL, (void *)serial_thread, NULL);
 
@@ -5070,24 +4667,24 @@ uchar config_do()
 
 	if ((0 == g_network_mode) || (0 == g_network_protocol))
 	{
-		syslog(LOG_DEBUG, "No NetMode Config");
+		debug_log("No NetMode Config");
 		G_serial_mode_set(1);
 	}
 	else if (1 == g_network_mode)
 	{
 		G_serial_mode_set(0);
-		syslog(LOG_DEBUG, "Server Mode Start Thread");
+		debug_log("Server Mode Start Thread");
 		ret = pthread_create(&server_thread_id, NULL, (void *)ser2network_server_thread, NULL);
 	}
 	else if (2 == g_network_mode)
 	{
 		G_serial_mode_set(0);
-		syslog(LOG_DEBUG, "Client Mode Start Thread");
+		debug_log("Client Mode Start Thread");
 		ret = pthread_create(&client_thread_id, NULL, (void *)ser2network_client_thread, NULL);
 	}
 	else
 	{
-		syslog(LOG_DEBUG, "Fail Mode ....................");
+		debug_log("Fail Mode ....................");
 	}
 
 	hlk_check1();
@@ -5126,11 +4723,6 @@ int writeSer2netPid(void)
 
 void out_transparent_do(uchar value)
 {
-	//	g_network_failed=1;
-	{
-		//		uchar buf[128];
-		//		config_command("at+reconn=1",buf);
-	}
 	if (value)
 		G_serial_mode_set(2);
 	else
@@ -5142,9 +4734,15 @@ static void ser2netSigHandler(int signum)
 	if (signum != SIGUSR1)
 		return;
 
-	TIM_DEBUG("DEBUG:%s(%d)\r\n", __FUNCTION__, __LINE__);
+	TIM_DEBUG("");
 
-	out_transparent_do(1);
+	if (G_serial_mode > 0) {
+		TIM_DEBUG("Into At Mode\r\n");
+		out_transparent_do(0);
+	} else {
+		TIM_DEBUG("out At Mode\r\n");
+		out_transparent_do(1);
+	}
 }
 
 void ser2netSigHandler2(int signum);
@@ -5162,19 +4760,19 @@ int init_()
 	memset(&client_thread_id, 0, sizeof(client_thread_id));
 	memset(&udp_thread_id, 0, sizeof(udp_thread_id));
 
-	res = pthread_mutex_init(&serial_buf_mutex, NULL); //init mutex ��ʼ��������
+	res = pthread_mutex_init(&serial_buf_mutex, NULL);
 	if (res != 0)
 	{
 		return -1;
 	}
 
-	res = pthread_mutex_init(&socket_buf_mutex, NULL); //init mutex ��ʼ��������
+	res = pthread_mutex_init(&socket_buf_mutex, NULL); 
 	if (res != 0)
 	{
 		return -1;
 	}
 
-	res = pthread_mutex_init(&G_serial_mode_mutex, NULL); //init mutex ��ʼ��������
+	res = pthread_mutex_init(&G_serial_mode_mutex, NULL);
 	if (res != 0)
 	{
 		return -1;
@@ -5256,8 +4854,6 @@ void led_init()
 {
 
 	return;
-
-	//system("reg s 0;reg m 624 0 2 1;reg m 60 00400095 0 1");
 
 	led.gpio = 1;
 	led.on = 0;
@@ -5433,7 +5029,7 @@ void ser_led_state(uchar value)
 
 int main(int argc, char *argv[])
 {
-	syslog(LOG_DEBUG, "hlk ser2net start");
+	debug_log("hlk ser2net start");
 
 	//	system("echo 5 >/proc/sys/net/ipv4/tcp_retries2");	//about 199s.
 	system("echo 3 >/proc/sys/net/ipv4/tcp_retries2"); //about 45s.
@@ -5464,33 +5060,10 @@ int main(int argc, char *argv[])
 		restart_app();
 	}
 
-#ifdef SER2NET_COM2
-
-	if (C2_init_() < 0)
-	{
-		TIM_ERROR("ERROR:%s(%d)\r\n", __FUNCTION__, __LINE__);
-		restart_app();
-	}
-
-#endif
-
-
 	config_all_get_nvram();
 	config_do();
 
-#if 1
-	//void netapply();
-
-	//netapply();
-
-#endif
-
-
-#ifdef SER2NET_COM2
-	C2_config_do();
-#endif
-
-	power_save();
+	//power_save();
 
 	while (1)
 	{

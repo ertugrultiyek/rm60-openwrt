@@ -9,7 +9,6 @@ s.anonymous = true
 
 s:tab("general",  translate("General Settings"))
 
-
 s:taboption("general", Value, "mode", translate("mode"))
 s:taboption("general", Value, "remoteip", translate("remoteip"))
 s:taboption("general", Value, "remoteport", translate("remoteport"))
@@ -32,15 +31,13 @@ s.anonymous = true
 
 s:tab("network",  translate("Network Settings"))
 
-s:taboption("network", Value, "netmode", translate("netmode"),translate("Network " ..
-		"Mode"))
+s:taboption("network", Value, "netmode", translate("netmode"),translate("Network " .."Mode"))
 s:taboption("network", Value, "sta2_4", translate("sta2_4"))
 s:taboption("network", Value, "sta5_8", translate("sta5_8"))
 s:taboption("network", Value, "ap2_4", translate("ap2_4"))
 s:taboption("network", Value, "ap5_8", translate("ap5_8"))
 s:taboption("network", Value, "lanip", translate("lanip"))
 s:taboption("network", Value, "dhcpd", translate("dhcpd"))
---s:taboption("network", Value, "dhcpc", translate("dhcpc"))
 s:taboption("network", Value, "wanip", translate("wanip"))
 s:taboption("network", Value, "waninterface", translate("waninterface"))
 s:taboption("network", Value, "laninterface", translate("laninterface"))

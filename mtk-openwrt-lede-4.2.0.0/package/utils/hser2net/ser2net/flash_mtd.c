@@ -5,7 +5,6 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <unistd.h>
-//#include "mtd-abi.h"
 
 #include <mtd/mtd-user.h>
 

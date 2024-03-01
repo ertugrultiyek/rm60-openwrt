@@ -87,7 +87,7 @@ function module_status()
 		nettype = nettype,
 	}
 	cmd = "logger module_name:"..module_name.." imei: "..imei.." simstatus: "..simstatus.." aaaaaaaaaaaaaaaaaaaa"
-	luci.sys.exec(cmd)
+	--luci.sys.exec(cmd)
 
 	luci.http.prepare_content("application/json")
 	luci.http.write_json(moduleinfo)

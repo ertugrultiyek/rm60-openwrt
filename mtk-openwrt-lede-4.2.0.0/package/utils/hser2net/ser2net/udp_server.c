@@ -24,7 +24,6 @@
 #include <errno.h>
 #include "flash.h"
 
-/*MAC*/
 #include <net/if.h>
 #include <linux/if_ether.h>
 
@@ -40,8 +39,6 @@
 #include <linux/tcp.h>
 #include <linux/socket.h>
 
-//#include <netinet/tcp.h>
-
 #include "ser2net.h"
 
 #define DIS_STR "HLK"
@@ -55,9 +52,7 @@ uchar AT_version(uchar *comm, uchar *out);
 void *udp_discovery_server(void *arg)
 {
 	int sock;
-	//sendto��ʹ�õĶԷ���ַ
 	struct sockaddr_in toAddr;
-	//��recvfrom��ʹ�õĶԷ�������ַ
 	struct sockaddr_in fromAddr;
 	int recvLen;
 	unsigned int addrLen;
@@ -134,8 +129,6 @@ void *udp_discovery_server(void *arg)
 				if ((recvLen = recvfrom(sock, recvBuffer, 127, 0, (struct sockaddr *)&toAddr, &addrLen)) < 0)
 				{
 					TIM_ERROR("ERROR:%s(%d)\r\n", __FUNCTION__, __LINE__);
-					//close(sock);
-					//pthread_exit(1);
 					break;
 				}
 				TIM_DEBUG("In:%s(%d) %d\r\n", __FUNCTION__, __LINE__, recvLen);
@@ -170,7 +163,6 @@ void *udp_discovery_server(void *arg)
 					if (sendto(sock, recvBuffer, recvLen, 0, (struct sockaddr *)&toAddr, sizeof(toAddr)) != recvLen)
 					{
 						TIM_ERROR("ERROR:%s(%d)\r\n", __FUNCTION__, __LINE__);
-						//close(sock);
 						break;
 					}
 				}
@@ -200,13 +192,11 @@ void *udp_discovery_server(void *arg)
 					if (sendto(sock, recvBuffer, recvLen, 0, (struct sockaddr *)&toAddr, sizeof(toAddr)) != recvLen)
 					{
 						TIM_ERROR("ERROR:%s(%d)\r\n", __FUNCTION__, __LINE__);
-						//close(sock);
 						break;
 					}
 				}
 				else
 				{
-					//			continue;
 					uchar *p = nvram_get(SER2NET_NVRAM, "AT_UdpAtEn");
 
 					if (p && (*p == '1'))
@@ -222,8 +212,6 @@ void *udp_discovery_server(void *arg)
 							if (sendto(sock, out, len, 0, (struct sockaddr *)&toAddr, sizeof(toAddr)) != len)
 							{
 								TIM_ERROR("ERROR:%s(%d)\r\n", __FUNCTION__, __LINE__);
-								//close(sock);
-								//pthread_exit(0);
 								break;
 							}
 						}
@@ -242,8 +230,6 @@ void *udp_discovery_server(void *arg)
 		{
 			TIM_WARN("WARN:%s(%d)\r\n", __FUNCTION__, __LINE__);
 		}
-
-		//		return 0;
 	}
 
 	if (g_select_quit_fd)
@@ -252,7 +238,5 @@ void *udp_discovery_server(void *arg)
 	if (sock)
 		close(sock);
 
-	//	pthread_exit(0);
-	//pthread_detach(pthread_self());
 	return ((void *)0);
 }

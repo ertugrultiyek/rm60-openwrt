@@ -42,12 +42,11 @@ end
 print("dke3dfiedfsd"..netmode)
 
 if (netmode == "sta2_4") or (netmode == "sta5_8") or (netmode == "eth") then
-    os.execute("ifconfig br-lan down ")
-    os.execute("ifconfig eth0 down ")
+    --os.execute("ifconfig br-lan down ")
+    --os.execute("ifconfig eth0 down ")
     return
 end
 if (netmode == "ap2_4") or (netmode == "ap5_8") or (netmode == "ap2_4ap5_8") then
-    print("ferj3idf")
     os.execute("ifconfig apcli0 down ")
     os.execute("ifconfig apclix0 down ")
     os.execute("ifconfig eth1 down ")
