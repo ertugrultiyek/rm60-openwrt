@@ -1,0 +1,24 @@
+Index: linux-4.4.198/drivers/usb/serial/option.c
+===================================================================
+--- linux-4.4.198.orig/drivers/usb/serial/option.c
++++ linux-4.4.198/drivers/usb/serial/option.c
+@@ -252,6 +252,7 @@ static void option_instat_callback(struc
+ #define QUECTEL_PRODUCT_EP06			0x0306
+ #define QUECTEL_PRODUCT_EM12			0x0512
+ #define QUECTEL_PRODUCT_RM500Q			0x0800
++#define QUECTEL_PRODUCT_RM520N			0x0801
+ #define QUECTEL_PRODUCT_RM500U			0x0900
+ 
+ 
+@@ -1125,6 +1126,11 @@ static const struct usb_device_id option
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM500Q, 0xff, 0, 0) },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM500Q, 0xff, 0xff, 0x10),
+ 	  .driver_info = ZLP },
++	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM520N, 0xff, 0xff, 0x30) },
++	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM520N, 0xff, 0, 0) },
++	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM520N, 0xff, 0xff, 0x10),
++	  .driver_info = ZLP },
++
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, 0x0901, 0xff, 0x00, 0x00) },	//Quectel EC200U-NC
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_RM500U, 0xff, 0x00, 0x00) },	//RG500U-CN
+ 

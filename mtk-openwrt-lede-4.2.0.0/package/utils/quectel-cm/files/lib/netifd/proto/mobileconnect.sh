@@ -69,6 +69,16 @@ proto_mobileconnect_setup() {
 			at_trans show_imei
 			at_trans show_rssi
 			#get imei and rssi
+		elif [ $module_type = "0801" ];then
+                        module_type="RM520N"
+                        ifname="wwan0"
+                        logger "device is RM520N ifname is wwan0_1"
+                        #switch card 
+                        echo -e "AT+QUIMSLOT=2" > /dev/ttyUSB2
+                        at_trans show_imei
+                        at_trans show_rssi
+                        #get imei and rssi
+
         elif [ $module_type = "0125" ];then
             module_type="EC20"
             ifname="wwan0"
@@ -96,6 +106,8 @@ proto_mobileconnect_setup() {
 		logger "device is RM500U"
 	elif [ $module_type = "RM500Q" ];then
 		logger "device is RM500Q"
+	elif [ $module_type = "RM520N" ];then
+		logger "device is RM520N"
 	elif [ $module_type = "FM650" ];then
 		logger "device is FM650"
     elif [ $module_type = "EC20" ];then
@@ -123,7 +135,7 @@ proto_mobileconnect_setup() {
 
 	logger "Starting network $interface"
 
-	if [ $module_type = "RM500Q" ];then
+	if [ $module_type = "RM500Q" or $module_type = "RM520N" ];then
 		logger "Setting up $ifname"_1
 		proto_init_update "${ifname}"_1 1
 	else

@@ -43,7 +43,12 @@ function module_status()
 	operator = "-"
 	rssi = "-"
 	nettype = "-"
-	
+
+	luci.sys.exec("at_trans show_sim_status")
+	luci.sys.exec("at_trans show_operator")
+	luci.sys.exec("at_trans show_rssi")
+	luci.sys.exec("at_trans show_nettype")
+
 	filenm,err=io.open("/tmp/mobile/module_name")
 	if filenm  then
 		module_name = luci.sys.exec("cat /tmp/mobile/module_name")
@@ -61,16 +66,19 @@ function module_status()
 		imei = luci.sys.exec("cat /tmp/mobile/imei")
 		filenm:close()
 	end
+
 	filenm,err=io.open("/tmp/mobile/rssi")
 	if filenm  then
 		rssi = luci.sys.exec("cat /tmp/mobile/rssi")
 		filenm:close()
 	end
+
 	filenm,err=io.open("/tmp/mobile/operator")
 	if filenm  then
 		operator = luci.sys.exec("cat /tmp/mobile/operator")
 		filenm:close()
 	end
+
 	filenm,err=io.open("/tmp/mobile/nettype")
 	if filenm  then
 		nettype = luci.sys.exec("cat /tmp/mobile/nettype")
@@ -86,7 +94,7 @@ function module_status()
 		rssi = rssi,
 		nettype = nettype,
 	}
-	cmd = "logger module_name:"..module_name.." imei: "..imei.." simstatus: "..simstatus.." aaaaaaaaaaaaaaaaaaaa"
+	--cmd = "logger module_name:"..module_name.." imei: "..imei.." simstatus: "..simstatus.." aaaaaaaaaaaaaaaaaaaa"
 	--luci.sys.exec(cmd)
 
 	luci.http.prepare_content("application/json")

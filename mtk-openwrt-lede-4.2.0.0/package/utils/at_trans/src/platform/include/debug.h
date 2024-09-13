@@ -23,6 +23,5 @@ do {\
 	struct tm *Pt;\
 	Ti = time(&Nowt);\
 	Pt = localtime(&Nowt);\
-	fprintf(stdout,  "%02d:%02d:%02d %s:%d: " fmt "\n", Pt->tm_hour, Pt->tm_min, Pt->tm_sec, __func__, __LINE__, ##arg);\
 	syslog(LOG_DEBUG, "%s:%d: \n" fmt "\n", __func__, __LINE__, ##arg);\
 } while (0)

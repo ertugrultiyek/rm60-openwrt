@@ -206,6 +206,7 @@ void close_ate_debug(int sfd)
 #define MODULE_NAME_FM650_CN    "FM650-CN"
 #define MODULE_NAME_RM500U_CN    "RM500U-CN"
 #define MODULE_NAME_RM500Q    "RM500Q"
+#define MODULE_NAME_RM520N    "RM520N"
 #define MODULE_NAME_EC200T    "EC200T"
 
 #define AT_TTY_USB0 "/dev/ttyUSB0"
@@ -221,6 +222,7 @@ struct usb_match_table module_vid_pid_match_array[] = {
     {MODULE_NAME_FM650_CN, AT_TTY_USB0, "2cb7:0a05"},
     {MODULE_NAME_RM500U_CN, AT_TTY_USB2, "2c7c:0900"},
     {MODULE_NAME_RM500Q, AT_TTY_USB2, "2c7c:0800"},
+    {MODULE_NAME_RM520N, AT_TTY_USB2, "2c7c:0801"},
     {MODULE_NAME_EC200T, AT_TTY_USB2, "2c7c:6026"},    
 
 };
@@ -380,7 +382,7 @@ void hlk_get_module_imei(char *dev, int baud, char *cmd, char *module_name)
     ringbuff_len = res;
 
     //hlk_tool_print_hexdump(ring_buff, ringbuff_len, 1);
-    if (!strcmp(module_name, MODULE_NAME_RM500Q) || !strcmp(module_name, MODULE_NAME_RM500U_CN)) {
+    if (!strcmp(module_name, MODULE_NAME_RM500Q) || !strcmp(module_name, MODULE_NAME_RM500U_CN) || !strcmp(module_name, MODULE_NAME_RM520N) ) {
         //查询数字 863305040646886 15位数字组成
         char * pPattern = "\\d{15}";
         pPcre = pcre_compile(pPattern, 0, &error, &erroffset, NULL);
@@ -444,7 +446,7 @@ void hlk_get_module_sim_status(char *dev, int baud, char *cmd, char *module_name
     //RM500Q 未插入SIM卡时 使用at+cpin? 会返回+CME ERROR: 13  插入sim卡后 会返回 +CPIN: READY 主动拔掉SIM 模块过一段时间会主动上报 +CPIN: NOT READY 这个状态 主动查询是拿不到的
     //RM500U-CN 未插入SIM 卡 或启动后插入SIM卡 CME ERROR: 10 
     
-    if (!strcmp(module_name, MODULE_NAME_RM500Q) || !strcmp(module_name, MODULE_NAME_RM500U_CN)) {
+    if (!strcmp(module_name, MODULE_NAME_RM500Q) || !strcmp(module_name, MODULE_NAME_RM500U_CN)  || !strcmp(module_name, MODULE_NAME_RM520N) ) {
         char * pPattern = "READY";
         pPcre = pcre_compile(pPattern, 0, &error, &erroffset, NULL);
 
@@ -476,7 +478,7 @@ char *hlk_get_simcard_num(char *dev, int baud, char *module_name)
 
     char *at_cmd = NULL;
 
-    if (!strcmp(module_name, MODULE_NAME_RM500Q)) {
+    if (!strcmp(module_name, MODULE_NAME_RM500Q) || !strcmp(module_name, MODULE_NAME_RM520N)) {
         at_cmd = "AT+CCID\r\n";
     }
 
@@ -488,7 +490,7 @@ char *hlk_get_simcard_num(char *dev, int baud, char *module_name)
 
     hlk_tool_print_hexdump(ring_buff, ringbuff_len, 1);
     
-    if (!strcmp(module_name, MODULE_NAME_RM500Q) || !strcmp(module_name, MODULE_NAME_RM500U_CN)) {
+    if (!strcmp(module_name, MODULE_NAME_RM500Q) || !strcmp(module_name, MODULE_NAME_RM500U_CN)  || !strcmp(module_name, MODULE_NAME_RM520N) ) {
 
         //查询哪个运行商
         char * pPattern = "(?i)[+]CCID:[\\s\\S]*OK";
@@ -567,7 +569,7 @@ char *hlk_get_reg_status(char *dev, int baud, char *module_name)
 
     char *at_cmd = NULL;
 
-    if (!strcmp(module_name, MODULE_NAME_RM500Q)) {
+    if (!strcmp(module_name, MODULE_NAME_RM500Q) || !strcmp(module_name, MODULE_NAME_RM520N)) {
         at_cmd = "AT+CREG?\r\n";
     }
 
@@ -582,7 +584,7 @@ char *hlk_get_reg_status(char *dev, int baud, char *module_name)
     //RM500Q 未插入SIM卡时 使用at+cpin? 会返回+CME ERROR: 13  插入sim卡后 会返回 +CPIN: READY 主动拔掉SIM 模块过一段时间会主动上报 +CPIN: NOT READY 这个状态 主动查询是拿不到的
     //RM500U-CN 未插入SIM 卡 或启动后插入SIM卡 CME ERROR: 10 
     
-    if (!strcmp(module_name, MODULE_NAME_RM500Q) || !strcmp(module_name, MODULE_NAME_RM500U_CN)) {
+    if (!strcmp(module_name, MODULE_NAME_RM500Q) || !strcmp(module_name, MODULE_NAME_RM500U_CN)  || !strcmp(module_name, MODULE_NAME_RM520N) ) {
 
         //查询哪个运行商
         char * pPattern = "(?i)[+]CREG:[\\s\\S]*OK";
@@ -686,7 +688,7 @@ char *hlk_get_rssi(char *dev, int baud, char *module_name)
 
     char *at_cmd = NULL;
 
-    if (!strcmp(module_name, MODULE_NAME_RM500Q)) {
+    if (!strcmp(module_name, MODULE_NAME_RM500Q) || !strcmp(module_name, MODULE_NAME_RM520N)) {
         at_cmd = "AT+CSQ\r\n";
     }
 
@@ -701,7 +703,7 @@ char *hlk_get_rssi(char *dev, int baud, char *module_name)
     //RM500Q 未插入SIM卡时 使用at+cpin? 会返回+CME ERROR: 13  插入sim卡后 会返回 +CPIN: READY 主动拔掉SIM 模块过一段时间会主动上报 +CPIN: NOT READY 这个状态 主动查询是拿不到的
     //RM500U-CN 未插入SIM 卡 或启动后插入SIM卡 CME ERROR: 10 
     
-    if (!strcmp(module_name, MODULE_NAME_RM500Q) || !strcmp(module_name, MODULE_NAME_RM500U_CN)) {
+    if (!strcmp(module_name, MODULE_NAME_RM500Q) || !strcmp(module_name, MODULE_NAME_RM500U_CN)  || !strcmp(module_name, MODULE_NAME_RM520N) ) {
 
         //查询哪个运行商
         char * pPattern = "(?i)[+]csq:[\\s\\S]*OK";
@@ -792,11 +794,13 @@ char *hlk_get_operator(char *dev, int baud, char *module_name)
 
     char *at_cmd = NULL;
 
+    /*
     if (access(OP_FILE, R_OK) == 0) {
         return NULL;
     }
+    */
 
-    if (!strcmp(module_name, MODULE_NAME_RM500Q)) {
+    if (!strcmp(module_name, MODULE_NAME_RM500Q) || !strcmp(module_name, MODULE_NAME_RM520N)) {
         at_cmd = "AT+COPS?\r\n";
     }
 
@@ -811,7 +815,7 @@ char *hlk_get_operator(char *dev, int baud, char *module_name)
     //RM500Q 未插入SIM卡时 使用at+cpin? 会返回+CME ERROR: 13  插入sim卡后 会返回 +CPIN: READY 主动拔掉SIM 模块过一段时间会主动上报 +CPIN: NOT READY 这个状态 主动查询是拿不到的
     //RM500U-CN 未插入SIM 卡 或启动后插入SIM卡 CME ERROR: 10 
     
-    if (!strcmp(module_name, MODULE_NAME_RM500Q) || !strcmp(module_name, MODULE_NAME_RM500U_CN)) {
+    if (!strcmp(module_name, MODULE_NAME_RM500Q) || !strcmp(module_name, MODULE_NAME_RM500U_CN)  || !strcmp(module_name, MODULE_NAME_RM520N) ) {
 
         //查询哪个运行商
         char * pPattern = "[+]COPS:[\\s\\S]*OK";
@@ -949,7 +953,7 @@ char *hlk_get_module_nettype(char *dev, int baud, char *module_name)
     }
 
 
-    if (!strcmp(module_name, MODULE_NAME_RM500Q)) {
+    if (!strcmp(module_name, MODULE_NAME_RM500Q)  || !strcmp(module_name, MODULE_NAME_RM520N) ) {
         at_cmd = "AT+QENG=\"servingcell\"\r\n";
     } else if (!strcmp(module_name, MODULE_NAME_RM500U_CN)) {
 
@@ -966,7 +970,7 @@ char *hlk_get_module_nettype(char *dev, int baud, char *module_name)
 
     hlk_tool_print_hexdump(ring_buff, ringbuff_len, 1);
     
-    if (!strcmp(module_name, MODULE_NAME_RM500Q)) {
+    if (!strcmp(module_name, MODULE_NAME_RM500Q)  || !strcmp(module_name, MODULE_NAME_RM520N) ) {
 
         //+QENG: "servingcell",<state>,"LTE",<is_tdd>,<MCC>,<MNC>,<cellID>,<PCID>,<earfcn>,<freq_band_ind>,<UL_bandwidth>,<DL_bandwidth>,<TAC>,<RSRP>,<RSRQ>,<RSSI>,<SINR>,<CQI>,<tx_power>,<srxlev>
         //+QENG: "servingcell","NOCONN","NR5G-SA","TDD", 460,11,1A383013,351,81A060,627264,78,3,-94,-12,15,1,2943
@@ -1127,16 +1131,30 @@ int main(int argc, char **argv)
     char *find_str;
 	char *tmp_buf = NULL;
     char *module_name = NULL;
+    int lsusb_fd;
 
     gw_signal_init();
 
     //根据VID PID判断 设备类型
     lenp = sizeof(buffer);
-    rc = hlk_tool_get_cmd_ret("lsusb", buffer, lenp);
-    if (rc < 0) {
-        printf(AT_RES_DEF_STR);
-        return -1;
-    }
+    if (access("/tmp/lsusb", R_OK)) {
+        rc = hlk_tool_get_cmd_ret("lsusb", buffer, lenp);
+        if (rc < 0) {
+            printf(AT_RES_DEF_STR);
+            return -1;
+        }
+        #if 1
+        lsusb_fd = open("/tmp/lsusb", O_WRONLY|O_CREAT);
+        lenp = write(lsusb_fd, buffer, rc);
+        close(lsusb_fd);
+        #endif
+    } else {
+        struct stat  stat_buf;
+        lsusb_fd= open("/tmp/lsusb",  O_RDONLY);
+        rc = read(lsusb_fd, buffer, lenp);
+
+        close(lsusb_fd);
+    }    
     lenp = rc;
 
 	ACTree = ac_alloc();
