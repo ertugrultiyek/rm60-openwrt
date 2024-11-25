@@ -135,7 +135,7 @@ proto_mobileconnect_setup() {
 
 	logger "Starting network $interface"
 
-	if [ $module_type = "RM500Q" or $module_type = "RM520N" ];then
+	if [ $module_type = "RM500Q" -o $module_type = "RM520N" ];then
 		logger "Setting up $ifname"_1
 		proto_init_update "${ifname}"_1 1
 	else
@@ -189,19 +189,24 @@ proto_mobileconnect_setup() {
 	fi
 
 	logger "#####apn:$apn pincode:$pincode user:$user psswd:$psswd"
+	cmd=""
 
 	if [ $has_quectel_model -eq 0 ];then
 		if [ $has_apn -eq 1 ];then
 			if [ $has_pin -eq 1 ];then
-				quectel-CM -i $ifname -s $apn $user $psswd -p $pincode
+				#quectel-CM -i $ifname -s $apn $user $psswd -p $pincode
+				cmd="quectel-CM -i $ifname -s $apn $user $psswd -p $pincode"
 			else
-				quectel-CM -i $ifname -s $apn $user $psswd
+				#quectel-CM -i $ifname -s $apn $user $psswd
+				cmd="quectel-CM -i $ifname -s $apn $user $psswd"
 			fi
 		else
 			if [ $has_pin -eq 1 ];then
-				quectel-CM -i $ifname -p $pincode
+				#quectel-CM -i $ifname -p $pincode
+				cmd="quectel-CM -i $ifname -s $apn $user $psswd"
 			else
-				quectel-CM -i $ifname
+				#quectel-CM -i $ifname
+				cmd="quectel-CM -i $ifname"
 			fi
 		fi
 	elif [ $has_fibcom_model -eq 0 ];then
@@ -213,28 +218,42 @@ proto_mobileconnect_setup() {
 			if [ $has_pin -eq 1 ];then
 				cmd="lte_dial  -s $apn $user $psswd -p $pincode"
 				logger "cmd: $cmd"
-				lte_dial -s $apn $user $psswd -p $pincode
+				#lte_dial -s $apn $user $psswd -p $pincode
+				cmd="lte_dial -s $apn $user $psswd -p $pincode"
 			else
 				cmd="lte_dial -s $apn $user $psswd"
 				logger "cmd: $cmd"
 
-				lte_dial  -s $apn $user $psswd
+				#lte_dial  -s $apn $user $psswd
+				cmd="lte_dial  -s $apn $user $psswd"
 			fi
 		else
 			if [ $has_pin -eq 1 ];then
 				cmd="lte_dial -p $pincode"
 				logger "cmd: $cmd"
 
-				lte_dial -p $pincode
+				#lte_dial -p $pincode
+				cmd="lte_dial -p $pincode"
 			else
-				lte_dial
+				#lte_dial
+				cmd="lte_dial"
 			fi
 		fi
 		logger "fibcom lte_dial abnormal stop"
 	fi
+
+	if [ "$cmd" != "" ];then
+		logger "start mobileConnect ................"
+		touch /tmp/mobile_run
+
+		while [ -e /tmp/mobile_run ];do
+			eval $cmd
+		done
+	fi
 }
 
 mobileconnect_wds_stop() {
+	rm -f /tmp/mobile_run
 	killall quectel-CM
 	killall lte_dial
 	#判断 mobile_app 参数是否打开

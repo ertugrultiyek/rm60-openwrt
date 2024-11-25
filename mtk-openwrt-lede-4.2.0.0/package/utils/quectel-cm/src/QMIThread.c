@@ -2177,6 +2177,10 @@ static int requestGetSignalInfo(void)
         {
             dbg_time("%s LTE: RSSI %d dBm, RSRQ %d dB, RSRP %d dBm, SNR %.1lf dB", __func__,
                 ptlv->rssi, ptlv->rsrq, ptlv->rsrp, (0.1) * (double)ptlv->snr);
+                {
+                    do_system("echo %d > %s", ptlv->rssi, SIGNAL_FILE);
+                }
+
         }
     }
 
@@ -2206,6 +2210,8 @@ static int requestGetSignalInfo(void)
         if (ptlv && ptlv->TLVLength)
         {
             dbg_time("%s 5G_SA: NR5G_RSRQ %d dB", __func__, ptlv->nr5g_rsrq);
+            do_system("echo %d > %s", ptlv->nr5g_rsrq, SIGNAL_FILE);
+
         }
     }
 
@@ -2480,7 +2486,7 @@ static int requestGetCellInfoList(void) {
 
 static int requestGetIMEI(void) {
 
-    if (access(IMEI_FILE, R_OK) == 0) {
+    if ( (access(IMEI_FILE, R_OK) == 0) && (access(OP_FILE, R_OK) == 0)) {
         return 0;
     }
     system("at_trans show_imei");
@@ -2488,7 +2494,7 @@ static int requestGetIMEI(void) {
     return 0;
 }
 static int requestGetRSSI(void) {
-    system("at_trans show_rssi");
+    //system("at_trans show_rssi");
 
     return 0;
 }

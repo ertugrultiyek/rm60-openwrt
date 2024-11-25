@@ -15,8 +15,12 @@ mobile_probe()
                         echo "RM500U" > /tmp/mobile/module_name
                 elif [ $pid = "0800" ];then
                         echo "RM500Q" > /tmp/mobile/module_name
-                elif [ $pid = "0801" ];then
-                        echo "RM520N" > /tmp/mobile/module_name
+		elif [ $pid = "0125" ];then
+			echo "EC20" > /tmp/mobile/module_name
+                elif [ $pid = "6026" ];then
+                        echo "EC200T" > /tmp/mobile/module_name
+		elif [ $pid = "0801" ];then
+			echo "RM520N" > /tmp/mobile/module_name
                 else
                         echo "UNKNOWN Dev" > /tmp/mobile/module_name
                 fi

@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <limits.h>
 #include <inttypes.h>
+#include <syslog.h>
 
 extern int asprintf(char **s, const char *fmt, ...);
 
@@ -1148,6 +1149,8 @@ static int requestGetRSSI(void) {
     int csq = -115;
     int ber;
     int rssi = -115;
+
+    return 0;
 
     err = at_send_command_singleline("AT+CSQ", "+CSQ:", &p_response);
 
